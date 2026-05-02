@@ -33,7 +33,7 @@ app.get("/health", (req, res) => {
   res.json({
     config: {
       mongodbUri: mongoUri ? "present" : "missing",
-      mongodbUriType,
+      mongodbUriType: mongoUriType,
       nodeEnv: process.env.NODE_ENV || "not set",
       tmdbApiKey: process.env.TMDB_API_KEY ? "present" : "missing",
       tmdbAccessToken: process.env.TMDB_ACCESS_TOKEN ? "present" : "missing",
