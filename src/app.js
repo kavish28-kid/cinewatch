@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const cors = require("./middleware/cors");
 const errorHandler = require("./middleware/errorHandler");
 const requireDatabase = require("./middleware/requireDatabase");
+const { normalizeMongoUri } = require("./config/db");
 const moviesRouter = require("./routes/movies");
 const ratingsRouter = require("./routes/ratings");
 const usersRouter = require("./routes/users");
@@ -23,7 +24,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/health", (req, res) => {
-  const mongoUri = process.env.MONGODB_URI || "";
+  const mongoUri = normalizeMongoUri(process.env.MONGODB_URI || "");
   const mongoUriType = mongoUri.startsWith("mongodb+srv://")
     ? "srv"
     : mongoUri.startsWith("mongodb://")
