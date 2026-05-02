@@ -23,7 +23,21 @@ app.get("/", (req, res) => {
 });
 
 app.get("/health", (req, res) => {
+  const mongoUri = process.env.MONGODB_URI || "";
+  const mongoUriType = mongoUri.startsWith("mongodb+srv://")
+    ? "srv"
+    : mongoUri.startsWith("mongodb://")
+      ? "direct"
+      : "unknown";
+
   res.json({
+    config: {
+      mongodbUri: mongoUri ? "present" : "missing",
+      mongodbUriType,
+      nodeEnv: process.env.NODE_ENV || "not set",
+      tmdbApiKey: process.env.TMDB_API_KEY ? "present" : "missing",
+      tmdbAccessToken: process.env.TMDB_ACCESS_TOKEN ? "present" : "missing",
+    },
     database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
     status: "ok",
   });
