@@ -3,11 +3,15 @@
 const mongoose = require("mongoose");
 
 function normalizeMongoUri(uri = "") {
-  return String(uri)
+  const value = String(uri)
     .trim()
     .replace(/^MONGODB_URI\s*=\s*/i, "")
     .replace(/^['"]|['"]$/g, "")
     .trim();
+
+  const embeddedUri = value.match(/mongodb(?:\+srv)?:\/\/[^\s"'`]+/i);
+
+  return embeddedUri ? embeddedUri[0] : value;
 }
 
 async function connectDatabase(uri = process.env.MONGODB_URI) {
