@@ -91,7 +91,16 @@ async function tmdbRequest(path, params = {}) {
   const data = await response.json();
 
   if (!response.ok) {
-    throw createHttpError(response.status, data.status_message || "TMDB request failed");
+    const statusMessage = data.status_message || "TMDB request failed";
+
+    if (response.status === 401 && statusMessage.toLowerCase().includes("api key")) {
+      throw createHttpError(
+        response.status,
+        "Invalid TMDB API key. Update TMDB_API_KEY in Render Environment, then redeploy.",
+      );
+    }
+
+    throw createHttpError(response.status, statusMessage);
   }
 
   return data;

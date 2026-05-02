@@ -2693,3 +2693,42 @@ textarea {
   margin-top: 2px;
   width: 100%;
 }
+
+/* Finished watchlist cards */
+.watchlist-card {
+  align-items: start;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 72px minmax(0, 1fr);
+  min-width: 0;
+}
+
+.watchlist-poster {
+  cursor: pointer;
+  padding: 0;
+  width: 72px;
+}
+
+.watchlist-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.watchlist-copy strong,
+.watchlist-copy span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.watchlist-actions {
+  display: grid;
+  gap: 7px;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.watchlist-actions button {
+  min-height: 32px;
+  width: 100%;
+}

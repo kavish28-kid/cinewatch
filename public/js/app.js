@@ -55,14 +55,15 @@ const state = {
 
 const historyKey = "cinewatch-search-history";
 const fallbackPosterUrls = {
-  "3 Idiots": "https://upload.wikimedia.org/wikipedia/en/d/df/3_idiots_poster.jpg",
-  "Avengers: Endgame": "https://upload.wikimedia.org/wikipedia/en/0/0d/Avengers_Endgame_poster.jpg",
-  Dangal: "https://upload.wikimedia.org/wikipedia/en/9/99/Dangal_Poster.jpg",
-  "Guardians of the Galaxy": "https://upload.wikimedia.org/wikipedia/en/3/33/Guardians_of_the_Galaxy_%28film%29_poster.jpg",
-  Inception: "https://upload.wikimedia.org/wikipedia/en/2/2e/Inception_%282010%29_theatrical_poster.jpg",
-  Interstellar: "https://upload.wikimedia.org/wikipedia/en/b/bc/Interstellar_film_poster.jpg",
-  "La La Land": "https://upload.wikimedia.org/wikipedia/en/a/ab/La_La_Land_%28film%29.png",
-  "The Dark Knight": "https://upload.wikimedia.org/wikipedia/en/1/1c/The_Dark_Knight_%282008_film%29.jpg",
+  "3 idiots": "https://upload.wikimedia.org/wikipedia/en/d/df/3_idiots_poster.jpg",
+  avengers: "https://upload.wikimedia.org/wikipedia/en/0/0d/Avengers_Endgame_poster.jpg",
+  "avengers endgame": "https://upload.wikimedia.org/wikipedia/en/0/0d/Avengers_Endgame_poster.jpg",
+  dangal: "https://upload.wikimedia.org/wikipedia/en/9/99/Dangal_Poster.jpg",
+  "guardians of the galaxy": "https://upload.wikimedia.org/wikipedia/en/3/33/Guardians_of_the_Galaxy_%28film%29_poster.jpg",
+  inception: "https://upload.wikimedia.org/wikipedia/en/2/2e/Inception_%282010%29_theatrical_poster.jpg",
+  interstellar: "https://upload.wikimedia.org/wikipedia/en/b/bc/Interstellar_film_poster.jpg",
+  "la la land": "https://upload.wikimedia.org/wikipedia/en/a/ab/La_La_Land_%28film%29.png",
+  "the dark knight": "https://upload.wikimedia.org/wikipedia/en/1/1c/The_Dark_Knight_%282008_film%29.jpg",
 };
 
 function getId(record) {
@@ -74,6 +75,11 @@ function showMessage(text) {
 }
 
 function showApiError(error) {
+  if (error.message.toLowerCase().includes("invalid api key")) {
+    showMessage("TMDB key is invalid on Render. Update TMDB_API_KEY in Render, then redeploy.");
+    return;
+  }
+
   showMessage(
     error.message === "database connection unavailable"
       ? "Database is offline. Check MongoDB Atlas Network Access or switch to mobile hotspot."
@@ -127,6 +133,18 @@ function initials(title = "") {
     .join("") || "CW";
 }
 
+function posterKey(title = "") {
+  return String(title)
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function posterUrlFor(movie) {
+  return movie.posterUrl || fallbackPosterUrls[posterKey(movie.title)] || "";
+}
+
 function fillPosterFallback(poster, movie) {
   const mark = document.createElement("strong");
   const genre = document.createElement("span");
@@ -138,7 +156,7 @@ function fillPosterFallback(poster, movie) {
 function createPoster(movie, extraClass = "") {
   const poster = document.createElement("div");
   poster.className = `poster ${extraClass}`.trim();
-  const posterUrl = movie.posterUrl || fallbackPosterUrls[movie.title];
+  const posterUrl = posterUrlFor(movie);
 
   if (posterUrl) {
     const image = document.createElement("img");
@@ -152,11 +170,6 @@ function createPoster(movie, extraClass = "") {
 
   return poster;
 }
-
-function posterUrlFor(movie) {
-  return movie.posterUrl || fallbackPosterUrls[movie.title] || "";
-}
-
 function pickFeaturedMovie() {
   return state.recommendations[0]
     || [...state.movies].sort((a, b) => (b.imdbRating || 0) - (a.imdbRating || 0))[0]
@@ -516,18 +529,7 @@ function renderTmdbResults() {
   for (const movie of state.tmdbResults) {
     const item = document.createElement("li");
     item.className = "tmdb-card";
-
-    const poster = document.createElement("div");
-    poster.className = "poster";
-
-    if (movie.posterUrl) {
-      const image = document.createElement("img");
-      image.src = movie.posterUrl;
-      image.alt = `${movie.title} poster`;
-      poster.appendChild(image);
-    } else {
-      poster.textContent = "No poster";
-    }
+    const poster = createPoster(movie);
 
     const details = document.createElement("div");
     details.className = "movie-details";
@@ -591,15 +593,47 @@ function renderWatchlist() {
   }
 
   for (const watchlistItem of items) {
+    if (!watchlistItem.movie) continue;
+
     const item = document.createElement("li");
     const movie = watchlistItem.movie;
+    const movieId = getId(movie);
+    item.className = "watchlist-card";
+
+    const poster = createPoster(movie, "watchlist-poster");
+    poster.addEventListener("click", () => openMovieDetails(movieId));
+
+    const copy = document.createElement("div");
+    copy.className = "watchlist-copy";
+
     const title = document.createElement("strong");
     title.textContent = movie.releaseYear ? `${movie.title} (${movie.releaseYear})` : movie.title;
 
     const meta = document.createElement("span");
-    meta.textContent = watchlistItem.status;
+    meta.textContent = movieSubtitle(movie) || watchlistItem.status;
 
-    item.append(title, meta);
+    const status = document.createElement("span");
+    status.textContent = `Status: ${watchlistItem.status}`;
+
+    copy.append(title, meta, status);
+
+    const actions = document.createElement("div");
+    actions.className = "watchlist-actions";
+
+    const detailsButton = document.createElement("button");
+    detailsButton.type = "button";
+    detailsButton.className = "secondary";
+    detailsButton.textContent = "Details";
+    detailsButton.addEventListener("click", () => openMovieDetails(movieId));
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "secondary danger";
+    removeButton.textContent = "Remove";
+    removeButton.addEventListener("click", () => toggleWatchlist(movieId, true));
+
+    actions.append(detailsButton, removeButton);
+    item.append(poster, copy, actions);
     watchlistList.appendChild(item);
   }
 }
