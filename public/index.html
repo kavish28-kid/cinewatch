@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cine Watch</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="toolbar">
+        <div>
+          <h1>CineWatch</h1>
+          <p id="active-user">Loading profile...</p>
+        </div>
+        <button id="menu-toggle" class="menu-toggle" type="button" aria-label="Open navigation" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </section>
+
+      <nav id="app-menu" class="app-menu" aria-label="CineWatch pages" aria-hidden="true">
+        <div class="menu-panel-head">
+          <span>Navigation</span>
+          <strong>Cine Watch</strong>
+        </div>
+        <button class="menu-link active" type="button" data-view="browse">Browse</button>
+        <button class="menu-link" type="button" data-view="dashboard">Dashboard</button>
+        <button class="menu-link" type="button" data-view="cinesense">CineSense</button>
+        <button class="menu-link" type="button" data-view="history">History</button>
+      </nav>
+      <div id="menu-backdrop" class="menu-backdrop" aria-hidden="true"></div>
+
+      <section class="status-strip">
+        <div id="message" role="status"></div>
+      </section>
+
+      <section class="cinema-marquee" aria-label="Cine Watch highlights">
+        <span>Now Showing</span>
+        <span>Premium Picks</span>
+        <span>Large Format Mood</span>
+        <span>AI Recommendations</span>
+      </section>
+
+      <section class="content-grid app-view active" id="browse-view">
+        <section class="browse-hero">
+          <div class="hero-copy">
+            <span class="eyebrow" id="hero-kicker">CineWatch Premiere</span>
+            <h2 id="hero-title">Find your next big-screen obsession.</h2>
+            <p id="hero-overview">Search real posters, build your watchlist, and let CineSense choose the movie when nobody can decide.</p>
+            <p>Search your library, save the good ones, and let CineSense pick when your brain says “anything is fine.”</p>
+            <div class="hero-meta" id="hero-meta"></div>
+            <div class="format-pills" aria-label="Cinema formats">
+              <span>Premium</span>
+              <span>Large Format</span>
+              <span>AI Pick</span>
+            </div>
+            <div class="hero-actions">
+              <button id="hero-details" type="button">Open Details</button>
+              <button id="hero-cinesense" class="secondary" type="button">CineSense</button>
+              <button id="hero-dashboard" class="secondary" type="button">View Dashboard</button>
+            </div>
+            <div class="hero-cue">
+              <span>Start with Poster Universe</span>
+              <i aria-hidden="true"></i>
+            </div>
+          </div>
+          <div id="hero-posters" class="hero-posters" aria-label="Featured movies"></div>
+        </section>
+
+        <section class="world-search-panel">
+          <div class="world-search-copy">
+            <span class="eyebrow">Poster Universe</span>
+            <h2>Find the movie poster before you save the seat.</h2>
+            <p>Search the world catalog, preview real posters, then import the titles you want in your CineWatch hall.</p>
+          </div>
+          <form id="tmdb-form" class="tmdb-form">
+            <input id="tmdb-query" name="query" placeholder="Search any movie in the world">
+            <button type="submit">Search Posters</button>
+          </form>
+          <ul id="tmdb-results" class="tmdb-grid"></ul>
+        </section>
+
+        <section class="library-panel">
+          <div class="section-heading">
+            <h2>Movies</h2>
+            <input id="search" placeholder="Search movies">
+          </div>
+          <details class="add-movie-panel">
+            <summary>Add custom movie</summary>
+            <form id="movie-form">
+              <input id="title" name="title" placeholder="Movie title" required>
+              <input id="releaseYear" name="releaseYear" placeholder="Year" type="number" min="1888">
+              <input id="genres" name="genres" placeholder="Genres, comma separated">
+              <button type="submit">Add Movie</button>
+            </form>
+          </details>
+          <ul id="movies" class="movie-grid"></ul>
+
+          <section class="watchlist-panel">
+            <div class="section-heading compact-heading">
+              <h2>Watchlist</h2>
+            </div>
+            <ul id="watchlist" class="side-list watchlist-grid"></ul>
+          </section>
+        </section>
+
+        <aside class="recommendation-rail">
+          <h2>Recommended</h2>
+          <p id="favorite-genres" class="side-note"></p>
+          <ul id="recommendations" class="side-list"></ul>
+
+          <h2 class="side-heading">Similar Movies</h2>
+          <ul id="similar-movies" class="side-list"></ul>
+        </aside>
+      </section>
+
+      <section class="app-view" id="dashboard-view">
+        <section class="sense-panel">
+          <div>
+            <h2>Your CineWatch Dashboard</h2>
+            <p>A quick read on your movie taste, watchlist, and rating activity.</p>
+          </div>
+        </section>
+
+        <section class="dashboard-grid">
+          <article class="metric-card">
+            <span>Total Movies</span>
+            <strong id="metric-total-movies">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Watchlist</span>
+            <strong id="metric-watchlist">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Rated</span>
+            <strong id="metric-rated">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Average Rating</span>
+            <strong id="metric-average-rating">0</strong>
+          </article>
+        </section>
+
+        <section class="dashboard-split">
+          <article class="insight-card">
+            <h2>Favorite Genre</h2>
+            <p id="favorite-genre-insight">Rate and watchlist movies to discover your taste.</p>
+          </article>
+          <article class="insight-card">
+            <h2>Highest Rated</h2>
+            <p id="highest-rated-insight">No rated movies yet.</p>
+          </article>
+          <article class="insight-card">
+            <h2>Next Best Pick</h2>
+            <p id="next-pick-insight">CineSense will choose from your recommendation list.</p>
+          </article>
+        </section>
+      </section>
+
+      <section class="app-view" id="cinesense-view">
+        <section class="sense-panel">
+          <div>
+            <h2>CineSense</h2>
+            <p>Find something to watch by mood, category, rating, and count.</p>
+          </div>
+          <form id="sense-form" class="sense-form">
+            <textarea id="sense-prompt" name="prompt" placeholder="Try: mind-bending sci-fi above 8, emotional Hindi drama, fun comedy for tonight"></textarea>
+            <select id="sense-genre" name="genre">
+              <option value="any">Any category</option>
+              <option value="Action">Action</option>
+              <option value="Adventure">Adventure</option>
+              <option value="Comedy">Comedy</option>
+              <option value="Crime">Crime</option>
+              <option value="Drama">Drama</option>
+              <option value="Music">Music</option>
+              <option value="Romance">Romance</option>
+              <option value="Sci-Fi">Sci-Fi</option>
+              <option value="Sports">Sports</option>
+              <option value="Thriller">Thriller</option>
+            </select>
+            <select id="sense-mood" name="mood">
+              <option value="any">Any mood</option>
+              <option value="fun">Fun</option>
+              <option value="emotional">Emotional</option>
+              <option value="intense">Intense</option>
+              <option value="inspiring">Inspiring</option>
+              <option value="mind-bending">Mind-bending</option>
+              <option value="romantic">Romantic</option>
+            </select>
+            <input id="sense-min-rating" name="minImdbRating" type="number" min="0" max="10" step="0.1" value="8" aria-label="Minimum IMDb rating">
+            <input id="sense-limit" name="limit" type="number" min="1" max="20" value="6" aria-label="Number of recommendations">
+            <button type="submit">Recommend</button>
+            <button id="random-button" class="secondary" type="button">Random Pick</button>
+          </form>
+        </section>
+
+        <section>
+          <div class="section-heading">
+            <h2>Recommendation Results</h2>
+          </div>
+          <ul id="sense-results" class="movie-grid"></ul>
+        </section>
+      </section>
+
+      <section class="app-view" id="history-view">
+        <section class="sense-panel">
+          <div>
+            <h2>Search History</h2>
+            <p>Recent movie searches from this browser.</p>
+          </div>
+          <button id="clear-history" class="secondary" type="button">Clear History</button>
+        </section>
+        <ul id="search-history" class="history-list"></ul>
+      </section>
+    </main>
+
+    <dialog id="movie-modal" class="movie-modal">
+      <div class="modal-shell">
+        <button id="modal-close" class="modal-close" type="button" aria-label="Close movie details">x</button>
+        <div id="modal-content"></div>
+      </div>
+    </dialog>
+
+    <script src="./js/api.js"></script>
+    <script src="./js/app.js"></script>
+  </body>
+</html>
