@@ -226,6 +226,7 @@ async function discoverTopRatedMovies(filters = {}) {
   const minRating = Number(filters.minImdbRating || filters.minRating || 7);
   const page = Math.min(Math.max(Number(filters.page || 1), 1), 20);
   const sortBy = filters.sort === "popular" ? "popularity.desc" : "vote_average.desc";
+  const minVoteCount = Number(filters.minVoteCount || (filters.sort === "popular" ? 250 : 1000));
   const data = await tmdbRequest("/discover/movie", {
     include_adult: "false",
     include_video: "false",
@@ -233,9 +234,11 @@ async function discoverTopRatedMovies(filters = {}) {
     page: String(page),
     sort_by: sortBy,
     "vote_average.gte": Number.isFinite(minRating) ? String(Math.min(minRating, 10)) : "7",
-    "vote_count.gte": filters.sort === "popular" ? "250" : "1000",
+    "vote_count.gte": Number.isFinite(minVoteCount) ? String(Math.max(minVoteCount, 1)) : "1000",
+    "vote_count.lte": filters.maxVoteCount ? String(filters.maxVoteCount) : undefined,
     "with_runtime.gte": filters.minRuntime ? String(filters.minRuntime) : undefined,
     "with_runtime.lte": filters.maxRuntime ? String(filters.maxRuntime) : undefined,
+    with_origin_country: filters.originCountry || undefined,
     with_original_language: filters.language || undefined,
     with_genres: genreIds.length > 0 ? genreIds.join("|") : undefined,
   });

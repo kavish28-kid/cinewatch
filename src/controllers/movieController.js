@@ -55,6 +55,195 @@ const promptMoodAliases = new Map([
   ["thoughtful", "thoughtful"],
 ]);
 
+const industryProfiles = new Map([
+  ["hollywood", {
+    label: "Hollywood",
+    language: "en",
+    minImdbRating: 7,
+    minVoteCount: 700,
+    originCountry: "US",
+    sort: "popular",
+  }],
+  ["british", {
+    label: "British Cinema",
+    language: "en",
+    minImdbRating: 7,
+    minVoteCount: 180,
+    originCountry: "GB",
+  }],
+  ["bollywood", {
+    label: "Bollywood",
+    language: "hi",
+    minImdbRating: 6.8,
+    minVoteCount: 90,
+    originCountry: "IN",
+    sort: "popular",
+  }],
+  ["hindi", {
+    label: "Hindi Cinema",
+    language: "hi",
+    minImdbRating: 6.8,
+    minVoteCount: 90,
+    originCountry: "IN",
+    sort: "popular",
+  }],
+  ["tollywood", {
+    label: "Tollywood",
+    language: "te",
+    minImdbRating: 6.8,
+    minVoteCount: 45,
+    originCountry: "IN",
+    sort: "popular",
+  }],
+  ["kollywood", {
+    label: "Kollywood",
+    language: "ta",
+    minImdbRating: 6.8,
+    minVoteCount: 45,
+    originCountry: "IN",
+    sort: "popular",
+  }],
+  ["mollywood", {
+    label: "Mollywood",
+    language: "ml",
+    minImdbRating: 6.8,
+    minVoteCount: 35,
+    originCountry: "IN",
+  }],
+  ["sandalwood", {
+    label: "Sandalwood",
+    language: "kn",
+    minImdbRating: 6.8,
+    minVoteCount: 25,
+    originCountry: "IN",
+  }],
+  ["marathi", {
+    label: "Marathi Cinema",
+    language: "mr",
+    minImdbRating: 6.8,
+    minVoteCount: 20,
+    originCountry: "IN",
+  }],
+  ["bengali", {
+    label: "Bengali Cinema",
+    language: "bn",
+    minImdbRating: 6.8,
+    minVoteCount: 20,
+    originCountry: "IN",
+  }],
+  ["korean", {
+    label: "Korean Wave",
+    language: "ko",
+    minImdbRating: 7,
+    minVoteCount: 120,
+    originCountry: "KR",
+    sort: "popular",
+  }],
+  ["japanese", {
+    label: "Japanese Cinema",
+    language: "ja",
+    minImdbRating: 7,
+    minVoteCount: 120,
+    originCountry: "JP",
+  }],
+  ["anime", {
+    genre: "Animation",
+    label: "Anime",
+    language: "ja",
+    minImdbRating: 7,
+    minVoteCount: 120,
+    originCountry: "JP",
+    sort: "popular",
+  }],
+  ["chinese", {
+    label: "Chinese Cinema",
+    language: "zh",
+    minImdbRating: 7,
+    minVoteCount: 100,
+  }],
+  ["spanish", {
+    label: "Spanish Language",
+    language: "es",
+    minImdbRating: 7,
+    minVoteCount: 80,
+  }],
+  ["french", {
+    label: "French Cinema",
+    language: "fr",
+    minImdbRating: 7,
+    minVoteCount: 80,
+    originCountry: "FR",
+  }],
+  ["turkish", {
+    label: "Turkish Cinema",
+    language: "tr",
+    minImdbRating: 7,
+    minVoteCount: 40,
+    originCountry: "TR",
+  }],
+  ["iranian", {
+    label: "Iranian Cinema",
+    language: "fa",
+    minImdbRating: 7,
+    minVoteCount: 25,
+    originCountry: "IR",
+  }],
+  ["arabic", {
+    label: "Arabic Cinema",
+    language: "ar",
+    minImdbRating: 7,
+    minVoteCount: 25,
+  }],
+  ["documentary", {
+    genre: "Documentary",
+    label: "Documentary Lens",
+    minImdbRating: 7.2,
+    minVoteCount: 80,
+  }],
+  ["hidden-world", {
+    label: "Hidden World Cinema",
+    maxVoteCount: 1600,
+    minImdbRating: 7.2,
+    minVoteCount: 80,
+  }],
+  ["cult", {
+    label: "Cult and Uncommon",
+    maxVoteCount: 2200,
+    minImdbRating: 6.8,
+    minVoteCount: 100,
+  }],
+]);
+
+const promptIndustryAliases = new Map([
+  ["anime", "anime"],
+  ["arabic", "arabic"],
+  ["bengali", "bengali"],
+  ["bollywood", "bollywood"],
+  ["british", "british"],
+  ["chinese", "chinese"],
+  ["cult", "cult"],
+  ["french", "french"],
+  ["hidden gem", "hidden-world"],
+  ["hidden world", "hidden-world"],
+  ["hindi", "hindi"],
+  ["hollywood", "hollywood"],
+  ["iranian", "iranian"],
+  ["japanese", "japanese"],
+  ["k drama", "korean"],
+  ["korean", "korean"],
+  ["kollywood", "kollywood"],
+  ["malayalam", "mollywood"],
+  ["marathi", "marathi"],
+  ["mollywood", "mollywood"],
+  ["sandalwood", "sandalwood"],
+  ["spanish", "spanish"],
+  ["telugu", "tollywood"],
+  ["tollywood", "tollywood"],
+  ["turkish", "turkish"],
+  ["underrated", "hidden-world"],
+  ["uncommon", "hidden-world"],
+]);
+
 async function getStatsForMovieIds(movieIds) {
   const [watchlistStats, ratingStats] = await Promise.all([
     Watchlist.aggregate([
@@ -312,34 +501,60 @@ function selectedValue(value) {
   return value && value !== "any" ? value : undefined;
 }
 
+function readPromptIndustry(prompt = "") {
+  const normalized = normalizePrompt(prompt);
+
+  for (const [needle, industry] of promptIndustryAliases) {
+    if (normalized.includes(needle)) {
+      return industry;
+    }
+  }
+
+  return undefined;
+}
+
+function readIndustryProfile(industry) {
+  return industry ? industryProfiles.get(String(industry).toLowerCase()) : undefined;
+}
+
 function worldFiltersFromQuery(query = {}) {
   const promptFilters = readPromptFilters(query.prompt || "");
+  const promptIndustry = readPromptIndustry(query.prompt || "");
+  const industry = selectedValue(query.industry) || promptIndustry;
+  const industryProfile = readIndustryProfile(industry);
   const genre = selectedValue(query.genre || query.category);
   const mood = selectedValue(query.mood);
   const minFromQuery = Number(query.minImdbRating || query.minRating || 0);
   const minImdbRating = Math.max(
     Number.isFinite(minFromQuery) ? minFromQuery : 0,
     promptFilters.minImdbRating || 0,
+    industryProfile?.minImdbRating || 0,
     7,
   );
+  const profileGenre = industryProfile?.genre;
 
   return {
-    genre,
-    genres: genre ? [genre] : promptFilters.genres,
-    language: selectedValue(query.language),
+    genre: genre || profileGenre,
+    genres: genre ? [genre] : profileGenre ? [profileGenre] : promptFilters.genres,
+    industry,
+    industryLabel: industryProfile?.label,
+    language: selectedValue(query.language) || industryProfile?.language,
     limit: clampLimit(query.limit, 8),
-    maxRuntime: query.maxRuntime ? Number(query.maxRuntime) : undefined,
+    maxRuntime: query.maxRuntime ? Number(query.maxRuntime) : industryProfile?.maxRuntime,
+    maxVoteCount: query.maxVoteCount ? Number(query.maxVoteCount) : industryProfile?.maxVoteCount,
     minImdbRating,
-    minRuntime: query.minRuntime ? Number(query.minRuntime) : undefined,
+    minRuntime: query.minRuntime ? Number(query.minRuntime) : industryProfile?.minRuntime,
+    minVoteCount: query.minVoteCount ? Number(query.minVoteCount) : industryProfile?.minVoteCount,
     mood,
     moods: mood ? [mood] : promptFilters.moods,
+    originCountry: selectedValue(query.originCountry || query.country) || industryProfile?.originCountry,
     prompt: query.prompt || "",
-    sort: query.sort === "popular" ? "popular" : "top",
+    sort: query.sort === "popular" ? "popular" : industryProfile?.sort || "top",
   };
 }
 
 function buildWorldReason(movie, filters) {
-  const reasons = ["world top-rated TMDB pick"];
+  const reasons = [filters.industryLabel || "world top-rated TMDB pick"];
 
   if (filters.genre && movie.genres.includes(filters.genre)) {
     reasons.push(`matches ${filters.genre}`);
@@ -355,6 +570,14 @@ function buildWorldReason(movie, filters) {
 
   if (movie.imdbRating) {
     reasons.push(`${movie.imdbRating}/10 TMDB rating`);
+  }
+
+  if (filters.language && movie.spokenLanguage) {
+    reasons.push(`${movie.spokenLanguage} language`);
+  }
+
+  if (filters.maxVoteCount) {
+    reasons.push("less mainstream pick");
   }
 
   if (movie.releaseYear) {

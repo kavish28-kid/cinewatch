@@ -116,7 +116,7 @@
           </article>
           <article class="collection-row">
             <div class="section-heading compact-heading">
-              <h2>Hindi Picks</h2>
+              <h2>Bollywood Picks</h2>
             </div>
             <ul id="hindi-picks" class="collection-list"></ul>
           </article>
@@ -125,6 +125,30 @@
               <h2>Hollywood Picks</h2>
             </div>
             <ul id="hollywood-picks" class="collection-list"></ul>
+          </article>
+          <article class="collection-row">
+            <div class="section-heading compact-heading">
+              <h2>Tollywood Picks</h2>
+            </div>
+            <ul id="tollywood-picks" class="collection-list"></ul>
+          </article>
+          <article class="collection-row">
+            <div class="section-heading compact-heading">
+              <h2>Korean Wave</h2>
+            </div>
+            <ul id="korean-picks" class="collection-list"></ul>
+          </article>
+          <article class="collection-row">
+            <div class="section-heading compact-heading">
+              <h2>Anime & Japan</h2>
+            </div>
+            <ul id="japan-picks" class="collection-list"></ul>
+          </article>
+          <article class="collection-row">
+            <div class="section-heading compact-heading">
+              <h2>Hidden World Cinema</h2>
+            </div>
+            <ul id="hidden-world-picks" class="collection-list"></ul>
           </article>
         </section>
 
@@ -232,6 +256,29 @@
           </div>
           <form id="sense-form" class="sense-form">
             <textarea id="sense-prompt" name="prompt" placeholder="Try: mind-bending sci-fi above 8, emotional Hindi drama, fun comedy for tonight"></textarea>
+            <select id="sense-industry" name="industry">
+              <option value="any">Any industry</option>
+              <option value="hollywood">Hollywood</option>
+              <option value="bollywood">Bollywood</option>
+              <option value="tollywood">Tollywood</option>
+              <option value="kollywood">Kollywood</option>
+              <option value="mollywood">Mollywood</option>
+              <option value="sandalwood">Sandalwood</option>
+              <option value="marathi">Marathi</option>
+              <option value="bengali">Bengali</option>
+              <option value="korean">Korean Wave</option>
+              <option value="japanese">Japanese Cinema</option>
+              <option value="anime">Anime</option>
+              <option value="chinese">Chinese Cinema</option>
+              <option value="spanish">Spanish Language</option>
+              <option value="french">French Cinema</option>
+              <option value="turkish">Turkish Cinema</option>
+              <option value="iranian">Iranian Cinema</option>
+              <option value="arabic">Arabic Cinema</option>
+              <option value="documentary">Documentary</option>
+              <option value="hidden-world">Hidden World</option>
+              <option value="cult">Cult & Uncommon</option>
+            </select>
             <select id="sense-genre" name="genre">
               <option value="any">Any category</option>
               <option value="Action">Action</option>
@@ -264,6 +311,24 @@
             <button type="submit">Recommend</button>
             <button id="random-button" class="secondary" type="button">Random Pick</button>
           </form>
+        </section>
+
+        <section class="industry-lens" aria-label="Industry recommendation shortcuts">
+          <div>
+            <span class="eyebrow">Industry Lens</span>
+            <h2>Pick the cinema world first.</h2>
+          </div>
+          <div id="industry-buttons" class="industry-buttons">
+            <button type="button" data-industry="hollywood">Hollywood</button>
+            <button type="button" data-industry="bollywood">Bollywood</button>
+            <button type="button" data-industry="tollywood">Tollywood</button>
+            <button type="button" data-industry="kollywood">Kollywood</button>
+            <button type="button" data-industry="mollywood">Mollywood</button>
+            <button type="button" data-industry="korean">Korean</button>
+            <button type="button" data-industry="anime">Anime</button>
+            <button type="button" data-industry="hidden-world">Hidden World</button>
+            <button type="button" data-industry="cult">Cult</button>
+          </div>
         </section>
 
         <section class="god-tools" aria-label="Advanced recommendation tools">
@@ -314,13 +379,16 @@
                 </select>
               </label>
               <label>
-                Language
-                <select id="quiz-language" name="language">
+                Industry
+                <select id="quiz-industry" name="industry">
                   <option value="any">Any</option>
-                  <option value="en">English</option>
-                  <option value="hi">Hindi</option>
-                  <option value="ko">Korean</option>
-                  <option value="ja">Japanese</option>
+                  <option value="hollywood">Hollywood</option>
+                  <option value="bollywood">Bollywood</option>
+                  <option value="tollywood">Tollywood</option>
+                  <option value="kollywood">Kollywood</option>
+                  <option value="korean">Korean</option>
+                  <option value="anime">Anime</option>
+                  <option value="hidden-world">Hidden World</option>
                 </select>
               </label>
               <label>

@@ -834,8 +834,8 @@ aside {
 }
 
 .sense-form {
-  grid-template-columns: minmax(130px, 1fr) minmax(130px, 1fr) 110px 110px auto auto;
-  max-width: 900px;
+  grid-template-columns: minmax(140px, 1fr) minmax(130px, 0.9fr) minmax(130px, 0.9fr) 110px 110px auto auto;
+  max-width: 1060px;
 }
 
 #sense-prompt {
@@ -2749,7 +2749,7 @@ textarea {
 }
 
 .sense-form {
-  grid-template-columns: minmax(110px, 1fr) minmax(110px, 1fr) 92px 92px auto auto;
+  grid-template-columns: minmax(126px, 1fr) minmax(110px, 0.9fr) minmax(110px, 0.9fr) 92px 92px auto auto;
 }
 
 #sense-prompt {
@@ -3142,6 +3142,48 @@ textarea {
 
 .toast.danger {
   border-left-color: #b21631;
+}
+
+.industry-lens {
+  align-items: center;
+  background:
+    linear-gradient(90deg, rgb(226 184 92 / 0.12), rgb(88 166 255 / 0.08), rgb(178 22 49 / 0.1)),
+    rgb(255 255 255 / 0.045);
+  border: 1px solid rgb(226 184 92 / 0.14);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(180px, 0.42fr) minmax(0, 1fr);
+  margin: 18px 0;
+  padding: 16px;
+}
+
+.industry-lens h2 {
+  font-size: clamp(20px, 3vw, 30px);
+  line-height: 1;
+  margin-top: 4px;
+}
+
+.industry-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.industry-buttons button {
+  background: rgb(255 255 255 / 0.06);
+  border-color: rgb(255 255 255 / 0.12);
+  color: #fff8ec;
+  font-size: 12px;
+  min-height: 34px;
+  padding: 7px 11px;
+}
+
+.industry-buttons button:hover {
+  background: rgb(226 184 92 / 0.18);
+  border-color: rgb(226 184 92 / 0.36);
 }
 
 .god-tools {
@@ -3796,6 +3838,14 @@ button,
 }
 
 @media (max-width: 900px) {
+  .industry-lens {
+    grid-template-columns: 1fr;
+  }
+
+  .industry-buttons {
+    justify-content: flex-start;
+  }
+
   .god-tools {
     grid-template-columns: 1fr;
   }
@@ -3806,6 +3856,20 @@ button,
 }
 
 @media (max-width: 640px) {
+  .industry-lens {
+    border-radius: 12px;
+    padding: 14px;
+  }
+
+  .industry-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .industry-buttons button {
+    width: 100%;
+  }
+
   .cinebot-panel,
   .mood-quiz-panel {
     border-radius: 12px;

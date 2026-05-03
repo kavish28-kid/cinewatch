@@ -51,6 +51,10 @@ const metricWatchlist = document.querySelector("#metric-watchlist");
 const favoriteGenreInsight = document.querySelector("#favorite-genre-insight");
 const highestRatedInsight = document.querySelector("#highest-rated-insight");
 const nextPickInsight = document.querySelector("#next-pick-insight");
+const hiddenWorldPicksList = document.querySelector("#hidden-world-picks");
+const industryButtons = document.querySelector("#industry-buttons");
+const japanPicksList = document.querySelector("#japan-picks");
+const koreanPicksList = document.querySelector("#korean-picks");
 const recommendationsList = document.querySelector("#recommendations");
 const randomButton = document.querySelector("#random-button");
 const quizForm = document.querySelector("#quiz-form");
@@ -70,6 +74,7 @@ const hollywoodPicksList = document.querySelector("#hollywood-picks");
 const message = document.querySelector("#message");
 const searchInput = document.querySelector("#search");
 const topRatedWorldList = document.querySelector("#top-rated-world");
+const tollywoodPicksList = document.querySelector("#tollywood-picks");
 const trendingWorldList = document.querySelector("#trending-world");
 const views = document.querySelectorAll(".app-view");
 
@@ -87,8 +92,12 @@ const state = {
   loading: new Set(),
   homeCollections: {
     hindi: [],
+    hiddenWorld: [],
     hollywood: [],
+    japan: [],
+    korean: [],
     topRated: [],
+    tollywood: [],
     trending: [],
   },
   watchlistByMovieId: new Map(),
@@ -432,8 +441,12 @@ function renderCollection(listElement, movies, emptyText) {
 function renderHomeCollections() {
   renderCollection(trendingWorldList, state.homeCollections.trending, "Trending picks are loading.");
   renderCollection(topRatedWorldList, state.homeCollections.topRated, "Top-rated picks are loading.");
-  renderCollection(hindiPicksList, state.homeCollections.hindi, "Hindi picks are loading.");
+  renderCollection(hindiPicksList, state.homeCollections.hindi, "Bollywood picks are loading.");
   renderCollection(hollywoodPicksList, state.homeCollections.hollywood, "Hollywood picks are loading.");
+  renderCollection(tollywoodPicksList, state.homeCollections.tollywood, "Tollywood picks are loading.");
+  renderCollection(koreanPicksList, state.homeCollections.korean, "Korean picks are loading.");
+  renderCollection(japanPicksList, state.homeCollections.japan, "Anime and Japanese picks are loading.");
+  renderCollection(hiddenWorldPicksList, state.homeCollections.hiddenWorld, "Hidden world picks are loading.");
 }
 
 function createMiniResultCard(movie) {
@@ -1191,17 +1204,34 @@ async function loadHomeCollections() {
 
   if (alreadyLoaded) return;
 
-  const [trending, topRated, hindi, hollywood] = await Promise.allSettled([
+  const [
+    trending,
+    topRated,
+    hindi,
+    hollywood,
+    tollywood,
+    korean,
+    japan,
+    hiddenWorld,
+  ] = await Promise.allSettled([
     window.cineWatchApi.getWorldRecommendations({ limit: 8, minImdbRating: 7, sort: "popular" }),
     window.cineWatchApi.getWorldRecommendations({ limit: 8, minImdbRating: 8, sort: "top" }),
-    window.cineWatchApi.getWorldRecommendations({ language: "hi", limit: 8, minImdbRating: 7, sort: "popular" }),
-    window.cineWatchApi.getWorldRecommendations({ language: "en", limit: 8, minImdbRating: 7.5, sort: "popular" }),
+    window.cineWatchApi.getWorldRecommendations({ industry: "bollywood", limit: 8, minImdbRating: 7, sort: "popular" }),
+    window.cineWatchApi.getWorldRecommendations({ industry: "hollywood", limit: 8, minImdbRating: 7.5, sort: "popular" }),
+    window.cineWatchApi.getWorldRecommendations({ industry: "tollywood", limit: 8, minImdbRating: 7, sort: "popular" }),
+    window.cineWatchApi.getWorldRecommendations({ industry: "korean", limit: 8, minImdbRating: 7, sort: "popular" }),
+    window.cineWatchApi.getWorldRecommendations({ industry: "anime", limit: 8, minImdbRating: 7, sort: "popular" }),
+    window.cineWatchApi.getWorldRecommendations({ industry: "hidden-world", limit: 8, minImdbRating: 7.2, sort: "top" }),
   ]);
 
   state.homeCollections.trending = trending.status === "fulfilled" ? trending.value.movies : [];
   state.homeCollections.topRated = topRated.status === "fulfilled" ? topRated.value.movies : [];
   state.homeCollections.hindi = hindi.status === "fulfilled" ? hindi.value.movies : [];
   state.homeCollections.hollywood = hollywood.status === "fulfilled" ? hollywood.value.movies : [];
+  state.homeCollections.tollywood = tollywood.status === "fulfilled" ? tollywood.value.movies : [];
+  state.homeCollections.korean = korean.status === "fulfilled" ? korean.value.movies : [];
+  state.homeCollections.japan = japan.status === "fulfilled" ? japan.value.movies : [];
+  state.homeCollections.hiddenWorld = hiddenWorld.status === "fulfilled" ? hiddenWorld.value.movies : [];
 }
 
 async function renderApp(search = "") {
@@ -1231,11 +1261,49 @@ function readSenseFilters() {
 
   return {
     genre: formData.get("genre"),
+    industry: formData.get("industry"),
     limit: formData.get("limit"),
     minImdbRating: formData.get("minImdbRating"),
     mood: formData.get("mood"),
     prompt: formData.get("prompt"),
   };
+}
+
+function industryFromText(text = "") {
+  const normalized = text.toLowerCase();
+  const entries = [
+    ["hidden", "hidden-world"],
+    ["underrated", "hidden-world"],
+    ["uncommon", "hidden-world"],
+    ["bollywood", "bollywood"],
+    ["hindi", "bollywood"],
+    ["hollywood", "hollywood"],
+    ["english", "hollywood"],
+    ["tollywood", "tollywood"],
+    ["telugu", "tollywood"],
+    ["kollywood", "kollywood"],
+    ["tamil", "kollywood"],
+    ["mollywood", "mollywood"],
+    ["malayalam", "mollywood"],
+    ["sandalwood", "sandalwood"],
+    ["kannada", "sandalwood"],
+    ["marathi", "marathi"],
+    ["bengali", "bengali"],
+    ["korean", "korean"],
+    ["japanese", "japanese"],
+    ["anime", "anime"],
+    ["chinese", "chinese"],
+    ["spanish", "spanish"],
+    ["french", "french"],
+    ["turkish", "turkish"],
+    ["iranian", "iranian"],
+    ["persian", "iranian"],
+    ["arabic", "arabic"],
+    ["documentary", "documentary"],
+    ["cult", "cult"],
+  ];
+
+  return entries.find(([needle]) => normalized.includes(needle))?.[1];
 }
 
 function languageFromText(text = "") {
@@ -1252,6 +1320,7 @@ function languageFromText(text = "") {
 function cinebotFiltersFromPrompt(prompt) {
   const normalized = prompt.toLowerCase();
   const filters = {
+    industry: industryFromText(prompt),
     limit: 5,
     minImdbRating: normalized.includes("perfect") || normalized.includes("best") ? 8 : 7,
     prompt,
@@ -1299,7 +1368,7 @@ function readQuizFilters() {
   const formData = new FormData(quizForm);
   const company = formData.get("company");
   const energy = formData.get("energy");
-  const language = formData.get("language");
+  const industry = formData.get("industry");
   const runtime = formData.get("runtime");
   const energyMap = {
     emotional: { genre: "Drama", mood: "emotional", words: "emotional drama" },
@@ -1311,6 +1380,7 @@ function readQuizFilters() {
   const base = energyMap[energy] || energyMap["mind-bending"];
   const filters = {
     genre: base.genre,
+    industry,
     limit: 6,
     minImdbRating: 7.2,
     mood: base.mood,
@@ -1330,7 +1400,7 @@ function readQuizFilters() {
     filters.prompt = `date night ${base.words}`;
   }
 
-  if (language && language !== "any") filters.language = language;
+  if (!industry || industry === "any") delete filters.industry;
   if (runtime === "short") filters.maxRuntime = 120;
   if (runtime === "long") filters.minRuntime = 140;
 
@@ -1414,6 +1484,22 @@ async function runMoodQuiz(event) {
   } finally {
     setLoading("mood-quiz", false);
   }
+}
+
+async function runIndustryLens(industry) {
+  if (senseForm.elements.industry) {
+    senseForm.elements.industry.value = industry;
+  }
+
+  if (senseForm.elements.genre) {
+    senseForm.elements.genre.value = "any";
+  }
+
+  if (senseForm.elements.prompt) {
+    senseForm.elements.prompt.value = "";
+  }
+
+  await runCineSense();
 }
 
 async function runRandomPicker() {
@@ -1723,6 +1809,13 @@ senseForm.addEventListener("submit", async (event) => {
 randomButton.addEventListener("click", runRandomPicker);
 cinebotForm.addEventListener("submit", runCineBot);
 quizForm.addEventListener("submit", runMoodQuiz);
+industryButtons.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-industry]");
+
+  if (!button) return;
+
+  await runIndustryLens(button.dataset.industry);
+});
 
 clearHistoryButton.addEventListener("click", () => {
   localStorage.removeItem(historyKey);
