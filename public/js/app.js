@@ -8,6 +8,7 @@ const authEmail = document.querySelector("#auth-email");
 const authForm = document.querySelector("#auth-form");
 const authLoginTab = document.querySelector("#auth-login-tab");
 const authName = document.querySelector("#auth-name");
+const authNameLabel = document.querySelector("#auth-name-label");
 const authOpen = document.querySelector("#auth-open");
 const authPassword = document.querySelector("#auth-password");
 const authRegisterTab = document.querySelector("#auth-register-tab");
@@ -133,7 +134,9 @@ function setAuthMode(mode) {
   authLoginTab.classList.toggle("active", !isRegister);
   authRegisterTab.classList.toggle("active", isRegister);
   authName.classList.toggle("visible", isRegister);
+  authNameLabel.classList.toggle("visible", isRegister);
   authName.required = isRegister;
+  authPassword.autocomplete = isRegister ? "new-password" : "current-password";
   authTitle.textContent = isRegister ? "Create account" : "Sign in";
   authCopy.textContent = isRegister
     ? "Create a profile for your own watchlist, ratings, and reviews."

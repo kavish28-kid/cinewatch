@@ -259,18 +259,34 @@
     <dialog id="auth-dialog" class="auth-dialog">
       <form id="auth-form" class="auth-shell" method="dialog">
         <button id="auth-close" class="modal-close" type="button" aria-label="Close account">x</button>
-        <span class="eyebrow">CineWatch Account</span>
-        <h2 id="auth-title">Sign in</h2>
-        <p id="auth-copy">Use your own profile so watchlist, ratings, and reviews stay separate.</p>
-        <div class="auth-tabs">
-          <button id="auth-login-tab" class="secondary active" type="button" data-auth-mode="login">Login</button>
-          <button id="auth-register-tab" class="secondary" type="button" data-auth-mode="register">Register</button>
-        </div>
-        <input id="auth-name" name="name" placeholder="Name">
-        <input id="auth-email" name="email" placeholder="Email" type="email" required>
-        <input id="auth-password" name="password" placeholder="Password" type="password" required>
-        <button id="auth-submit" type="submit">Login</button>
-        <button id="demo-user-button" class="secondary" type="button">Use Demo User</button>
+        <section class="auth-showcase">
+          <span class="eyebrow">CineWatch Account</span>
+          <h2>Your private cinema profile.</h2>
+          <p>Keep your watchlist, ratings, reviews, and CineSense taste profile separate from everyone else.</p>
+          <div class="auth-benefits" aria-label="Account benefits">
+            <span>Saved watchlist</span>
+            <span>Personal ratings</span>
+            <span>Review history</span>
+            <span>Better picks</span>
+          </div>
+        </section>
+        <section class="auth-panel">
+          <span class="eyebrow">Welcome</span>
+          <h2 id="auth-title">Sign in</h2>
+          <p id="auth-copy">Use your own profile so watchlist, ratings, and reviews stay separate.</p>
+          <div class="auth-tabs">
+            <button id="auth-login-tab" class="secondary active" type="button" data-auth-mode="login">Login</button>
+            <button id="auth-register-tab" class="secondary" type="button" data-auth-mode="register">Register</button>
+          </div>
+          <label id="auth-name-label" for="auth-name">Name</label>
+          <input id="auth-name" name="name" placeholder="Your name" autocomplete="name">
+          <label for="auth-email">Email</label>
+          <input id="auth-email" name="email" placeholder="you@example.com" type="email" autocomplete="email" required>
+          <label for="auth-password">Password</label>
+          <input id="auth-password" name="password" placeholder="Minimum 6 characters" type="password" autocomplete="current-password" required>
+          <button id="auth-submit" type="submit">Login</button>
+          <button id="demo-user-button" class="secondary" type="button">Use Demo User</button>
+        </section>
       </form>
     </dialog>
 
