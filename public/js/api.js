@@ -33,6 +33,12 @@ function getMovie(movieId) {
   return apiRequest(`/movies/${movieId}`);
 }
 
+function deleteMovie(movieId) {
+  return apiRequest(`/movies/${movieId}`, {
+    method: "DELETE",
+  });
+}
+
 function getUser(userId) {
   return apiRequest(`/users/${encodeURIComponent(userId)}`);
 }
@@ -171,6 +177,7 @@ function rateMovie(userId, movieId, score, review = "") {
 window.cineWatchApi = {
   addToWatchlist,
   createMovie,
+  deleteMovie,
   getAiRecommendations,
   getDemoUser,
   getDiscoveryRecommendations,

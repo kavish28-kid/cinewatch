@@ -7,6 +7,7 @@ const authDialog = document.querySelector("#auth-dialog");
 const authEmail = document.querySelector("#auth-email");
 const authForm = document.querySelector("#auth-form");
 const authLoginTab = document.querySelector("#auth-login-tab");
+const authLogout = document.querySelector("#auth-logout");
 const authName = document.querySelector("#auth-name");
 const authNameLabel = document.querySelector("#auth-name-label");
 const authOpen = document.querySelector("#auth-open");
@@ -70,6 +71,7 @@ const state = {
   user: null,
   activeDetailMovieId: null,
   featuredMovieId: null,
+  loading: new Set(),
   homeCollections: {
     hindi: [],
     hollywood: [],
@@ -102,6 +104,19 @@ function showMessage(text) {
   message.textContent = text;
 }
 
+function setLoading(key, isLoading, text = "Working...") {
+  if (isLoading) {
+    state.loading.add(key);
+    showMessage(text);
+  } else {
+    state.loading.delete(key);
+  }
+}
+
+function isLoading(key) {
+  return state.loading.has(key);
+}
+
 function showApiError(error) {
   if (error.message.toLowerCase().includes("invalid api key")) {
     showMessage("TMDB key is invalid on Render. Update TMDB_API_KEY in Render, then redeploy.");
@@ -122,6 +137,7 @@ function userLabel(user) {
 function setActiveUser(user, { persist = true } = {}) {
   state.user = user;
   activeUser.textContent = userLabel(user);
+  authOpen.textContent = user ? user.name || "Account" : "Account";
 
   if (persist && user) {
     localStorage.setItem(userKey, getId(user));
@@ -140,8 +156,11 @@ function setAuthMode(mode) {
   authTitle.textContent = isRegister ? "Create account" : "Sign in";
   authCopy.textContent = isRegister
     ? "Create a profile for your own watchlist, ratings, and reviews."
-    : "Sign in to continue your CineWatch taste profile.";
+    : state.user
+      ? `Currently using ${state.user.name || state.user.email}. Login to switch profile.`
+      : "Sign in to continue your CineWatch taste profile.";
   authSubmit.textContent = isRegister ? "Create Account" : "Login";
+  authLogout.disabled = !state.user;
 }
 
 async function useDemoUser({ persist = true } = {}) {
@@ -698,7 +717,13 @@ function renderDetailsPage(movie, similarMovies = []) {
   watchlistButton.textContent = watchlistItem ? "Remove from Watchlist" : "Add to Watchlist";
   watchlistButton.addEventListener("click", () => toggleWatchlist(movieId, Boolean(watchlistItem)));
 
-  actions.append(watchlistButton, ratingSelect, saveReviewButton);
+  const deleteButton = document.createElement("button");
+  deleteButton.type = "button";
+  deleteButton.className = "secondary danger";
+  deleteButton.textContent = "Delete Movie";
+  deleteButton.addEventListener("click", () => deleteStoredMovie(movieId, movie.title));
+
+  actions.append(watchlistButton, ratingSelect, saveReviewButton, deleteButton);
 
   const similarSection = document.createElement("div");
   similarSection.className = "details-similar";
@@ -775,6 +800,16 @@ function renderMovies() {
 
 function renderTmdbResults() {
   tmdbResultsList.innerHTML = "";
+
+  if (isLoading("tmdb-search")) {
+    for (let index = 0; index < 6; index += 1) {
+      const item = document.createElement("li");
+      item.className = "tmdb-card skeleton-card";
+      item.innerHTML = "<div class=\"poster skeleton-box\"></div><div class=\"movie-details\"><span class=\"skeleton-line wide\"></span><span class=\"skeleton-line\"></span><span class=\"skeleton-line short\"></span></div>";
+      tmdbResultsList.appendChild(item);
+    }
+    return;
+  }
 
   for (const movie of state.tmdbResults) {
     const item = document.createElement("li");
@@ -894,6 +929,17 @@ function renderRecommendations() {
     state.recommendations,
     "Rate or watchlist movies to generate recommendations.",
   );
+}
+
+function renderSenseLoading() {
+  senseResultsList.innerHTML = "";
+
+  for (let index = 0; index < 6; index += 1) {
+    const item = document.createElement("li");
+    item.className = "movie-card skeleton-card";
+    item.innerHTML = "<div class=\"poster card-poster skeleton-box\"></div><div class=\"movie-details\"><span class=\"skeleton-line wide\"></span><span class=\"skeleton-line\"></span><span class=\"skeleton-line short\"></span></div><div class=\"movie-actions\"><span class=\"skeleton-button\"></span></div>";
+    senseResultsList.appendChild(item);
+  }
 }
 
 function renderSimilarMovies() {
@@ -1063,6 +1109,8 @@ function readSenseFilters() {
 
 async function runCineSense() {
   try {
+    setLoading("cinesense", true, "Finding world-ranked recommendations...");
+    renderSenseLoading();
     const filters = readSenseFilters();
     const data = await window.cineWatchApi.getWorldRecommendations({
       ...filters,
@@ -1077,11 +1125,15 @@ async function runCineSense() {
     showMessage(`Found ${state.senseResults.length} world-ranked CineSense recommendations.`);
   } catch (error) {
     showApiError(error);
+  } finally {
+    setLoading("cinesense", false);
   }
 }
 
 async function runRandomPicker() {
   try {
+    setLoading("cinesense", true, "Picking a world-ranked movie...");
+    renderSenseLoading();
     const data = await window.cineWatchApi.getWorldRandomMovie(readSenseFilters());
     state.senseResults = data.movie ? [data.movie] : [];
     renderMovieCards(
@@ -1092,11 +1144,14 @@ async function runRandomPicker() {
     showMessage(data.movie ? "World random pick ready." : "No random pick found.");
   } catch (error) {
     showApiError(error);
+  } finally {
+    setLoading("cinesense", false);
   }
 }
 
 async function toggleWatchlist(movieId, isInWatchlist) {
   try {
+    setLoading(`watchlist-${movieId}`, true, isInWatchlist ? "Removing from watchlist..." : "Adding to watchlist...");
     const userId = getId(state.user);
 
     if (isInWatchlist) {
@@ -1123,11 +1178,14 @@ async function toggleWatchlist(movieId, isInWatchlist) {
     }
   } catch (error) {
     showApiError(error);
+  } finally {
+    setLoading(`watchlist-${movieId}`, false);
   }
 }
 
 async function saveRating(movieId, score, review = "") {
   try {
+    setLoading(`rating-${movieId}`, true, "Saving rating and review...");
     await window.cineWatchApi.rateMovie(getId(state.user), movieId, score, review);
     showMessage(`Rated ${score}/10.`);
     await Promise.all([
@@ -1146,6 +1204,8 @@ async function saveRating(movieId, score, review = "") {
     }
   } catch (error) {
     showApiError(error);
+  } finally {
+    setLoading(`rating-${movieId}`, false);
   }
 }
 
@@ -1179,6 +1239,7 @@ async function openMovieDetails(movieId) {
 
 async function importTmdbMovie(tmdbId) {
   try {
+    setLoading(`import-${tmdbId}`, true, "Importing movie...");
     const data = await window.cineWatchApi.importTmdbMovie(tmdbId);
     state.tmdbResults = state.tmdbResults.filter((movie) => String(movie.tmdbId) !== String(tmdbId));
     state.senseResults = state.senseResults.map((movie) => (
@@ -1194,6 +1255,28 @@ async function importTmdbMovie(tmdbId) {
     await renderApp(searchInput.value.trim());
   } catch (error) {
     showApiError(error);
+  } finally {
+    setLoading(`import-${tmdbId}`, false);
+  }
+}
+
+async function deleteStoredMovie(movieId, title) {
+  const shouldDelete = window.confirm(`Delete "${title}" from CineWatch? This also removes its ratings and watchlist entries.`);
+
+  if (!shouldDelete) return;
+
+  try {
+    setLoading(`delete-${movieId}`, true, "Deleting movie...");
+    await window.cineWatchApi.deleteMovie(movieId);
+    state.activeDetailMovieId = null;
+    detailsPageContent.innerHTML = "<p class=\"empty-state\">Movie deleted. Choose another movie to open details.</p>";
+    await renderApp(searchInput.value.trim());
+    switchView("browse");
+    showMessage(`Deleted ${title}.`);
+  } catch (error) {
+    showApiError(error);
+  } finally {
+    setLoading(`delete-${movieId}`, false);
   }
 }
 
@@ -1234,6 +1317,8 @@ tmdbForm.addEventListener("submit", async (event) => {
   }
 
   try {
+    setLoading("tmdb-search", true, "Searching TMDB posters...");
+    renderTmdbResults();
     const data = await window.cineWatchApi.searchTmdbMovies(query);
     state.tmdbResults = data.movies;
     saveSearch(query);
@@ -1241,6 +1326,9 @@ tmdbForm.addEventListener("submit", async (event) => {
     showMessage(`Found ${state.tmdbResults.length} TMDB results.`);
   } catch (error) {
     showApiError(error);
+  } finally {
+    setLoading("tmdb-search", false);
+    renderTmdbResults();
   }
 });
 
@@ -1302,19 +1390,34 @@ authRegisterTab.addEventListener("click", () => setAuthMode("register"));
 
 demoUserButton.addEventListener("click", async () => {
   try {
+    setLoading("auth", true, "Loading demo profile...");
     await useDemoUser({ persist: true });
     authDialog.close();
     await renderApp(searchInput.value.trim());
     showMessage("Demo profile loaded.");
   } catch (error) {
     showApiError(error);
+  } finally {
+    setLoading("auth", false);
   }
+});
+
+authLogout.addEventListener("click", async () => {
+  localStorage.removeItem(userKey);
+  state.user = null;
+  state.ratingsByMovieId = new Map();
+  state.watchlistByMovieId = new Map();
+  authDialog.close();
+  await useDemoUser({ persist: true });
+  await renderApp(searchInput.value.trim());
+  showMessage("Logged out. Demo profile loaded.");
 });
 
 authForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   try {
+    setLoading("auth", true, authMode === "register" ? "Creating account..." : "Signing in...");
     const data = authMode === "register"
       ? await window.cineWatchApi.registerUser(authName.value.trim(), authEmail.value.trim(), authPassword.value)
       : await window.cineWatchApi.loginUser(authEmail.value.trim(), authPassword.value);
@@ -1326,6 +1429,8 @@ authForm.addEventListener("submit", async (event) => {
     showMessage(`Signed in as ${data.user.name}.`);
   } catch (error) {
     showApiError(error);
+  } finally {
+    setLoading("auth", false);
   }
 });
 

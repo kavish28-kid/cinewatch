@@ -2961,6 +2961,54 @@ textarea {
   display: block;
 }
 
+.auth-logout {
+  margin-top: 2px;
+}
+
+.skeleton-card {
+  pointer-events: none;
+}
+
+.skeleton-box,
+.skeleton-line,
+.skeleton-button {
+  animation: skeleton-pulse 1.35s ease-in-out infinite;
+  background:
+    linear-gradient(90deg, rgb(255 255 255 / 0.055), rgb(226 184 92 / 0.12), rgb(255 255 255 / 0.055));
+  background-size: 220% 100%;
+  border: 1px solid rgb(226 184 92 / 0.08);
+  border-radius: 8px;
+  display: block;
+}
+
+.skeleton-line {
+  height: 12px;
+  width: 72%;
+}
+
+.skeleton-line.wide {
+  width: 94%;
+}
+
+.skeleton-line.short {
+  width: 48%;
+}
+
+.skeleton-button {
+  height: 36px;
+  width: 100%;
+}
+
+@keyframes skeleton-pulse {
+  0% {
+    background-position: 120% 0;
+  }
+
+  100% {
+    background-position: -120% 0;
+  }
+}
+
 @media (max-width: 760px) {
   .toolbar-actions {
     justify-content: flex-end;
