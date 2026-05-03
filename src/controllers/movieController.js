@@ -326,11 +326,13 @@ function worldFiltersFromQuery(query = {}) {
   return {
     genre,
     genres: genre ? [genre] : promptFilters.genres,
+    language: selectedValue(query.language),
     limit: clampLimit(query.limit, 8),
     minImdbRating,
     mood,
     moods: mood ? [mood] : promptFilters.moods,
     prompt: query.prompt || "",
+    sort: query.sort === "popular" ? "popular" : "top",
   };
 }
 

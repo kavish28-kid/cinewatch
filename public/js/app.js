@@ -1,7 +1,21 @@
 "use strict";
 
 const activeUser = document.querySelector("#active-user");
+const authClose = document.querySelector("#auth-close");
+const authCopy = document.querySelector("#auth-copy");
+const authDialog = document.querySelector("#auth-dialog");
+const authEmail = document.querySelector("#auth-email");
+const authForm = document.querySelector("#auth-form");
+const authLoginTab = document.querySelector("#auth-login-tab");
+const authName = document.querySelector("#auth-name");
+const authOpen = document.querySelector("#auth-open");
+const authPassword = document.querySelector("#auth-password");
+const authRegisterTab = document.querySelector("#auth-register-tab");
+const authSubmit = document.querySelector("#auth-submit");
+const authTitle = document.querySelector("#auth-title");
 const clearHistoryButton = document.querySelector("#clear-history");
+const demoUserButton = document.querySelector("#demo-user-button");
+const detailsPageContent = document.querySelector("#details-page-content");
 const heroCinesenseButton = document.querySelector("#hero-cinesense");
 const heroDashboardButton = document.querySelector("#hero-dashboard");
 const heroDetailsButton = document.querySelector("#hero-details");
@@ -37,8 +51,12 @@ const tmdbQuery = document.querySelector("#tmdb-query");
 const tmdbResultsList = document.querySelector("#tmdb-results");
 const watchlistList = document.querySelector("#watchlist");
 const favoriteGenres = document.querySelector("#favorite-genres");
+const hindiPicksList = document.querySelector("#hindi-picks");
+const hollywoodPicksList = document.querySelector("#hollywood-picks");
 const message = document.querySelector("#message");
 const searchInput = document.querySelector("#search");
+const topRatedWorldList = document.querySelector("#top-rated-world");
+const trendingWorldList = document.querySelector("#trending-world");
 const views = document.querySelectorAll(".app-view");
 
 const state = {
@@ -49,11 +67,20 @@ const state = {
   senseResults: [],
   tmdbResults: [],
   user: null,
+  activeDetailMovieId: null,
   featuredMovieId: null,
+  homeCollections: {
+    hindi: [],
+    hollywood: [],
+    topRated: [],
+    trending: [],
+  },
   watchlistByMovieId: new Map(),
 };
 
 const historyKey = "cinewatch-search-history";
+const userKey = "cinewatch-active-user-id";
+let authMode = "login";
 const fallbackPosterUrls = {
   "3 idiots": "https://upload.wikimedia.org/wikipedia/en/d/df/3_idiots_poster.jpg",
   avengers: "https://upload.wikimedia.org/wikipedia/en/0/0d/Avengers_Endgame_poster.jpg",
@@ -85,6 +112,55 @@ function showApiError(error) {
       ? "Database is offline. Check MongoDB Atlas Network Access or switch to mobile hotspot."
       : error.message,
   );
+}
+
+function userLabel(user) {
+  return user ? `Using ${user.name || user.email}` : "Loading profile...";
+}
+
+function setActiveUser(user, { persist = true } = {}) {
+  state.user = user;
+  activeUser.textContent = userLabel(user);
+
+  if (persist && user) {
+    localStorage.setItem(userKey, getId(user));
+  }
+}
+
+function setAuthMode(mode) {
+  authMode = mode;
+  const isRegister = mode === "register";
+  authLoginTab.classList.toggle("active", !isRegister);
+  authRegisterTab.classList.toggle("active", isRegister);
+  authName.classList.toggle("visible", isRegister);
+  authName.required = isRegister;
+  authTitle.textContent = isRegister ? "Create account" : "Sign in";
+  authCopy.textContent = isRegister
+    ? "Create a profile for your own watchlist, ratings, and reviews."
+    : "Sign in to continue your CineWatch taste profile.";
+  authSubmit.textContent = isRegister ? "Create Account" : "Login";
+}
+
+async function useDemoUser({ persist = true } = {}) {
+  const data = await window.cineWatchApi.getDemoUser();
+  setActiveUser(data.user, { persist });
+}
+
+async function loadStoredUser() {
+  const savedUserId = localStorage.getItem(userKey);
+
+  if (!savedUserId) {
+    await useDemoUser({ persist: true });
+    return;
+  }
+
+  try {
+    const data = await window.cineWatchApi.getUser(savedUserId);
+    setActiveUser(data.user, { persist: true });
+  } catch (error) {
+    localStorage.removeItem(userKey);
+    await useDemoUser({ persist: true });
+  }
 }
 
 function movieSubtitle(movie) {
@@ -237,6 +313,44 @@ function renderHeroPosters() {
     button.append(createPoster(movie), label);
     heroPosters.appendChild(button);
   }
+}
+
+function renderCollection(listElement, movies, emptyText) {
+  listElement.innerHTML = "";
+
+  if (movies.length === 0) {
+    const item = document.createElement("li");
+    item.className = "empty-state";
+    item.textContent = emptyText;
+    listElement.appendChild(item);
+    return;
+  }
+
+  for (const movie of movies) {
+    const item = document.createElement("li");
+    item.className = "collection-card";
+
+    const importButton = document.createElement("button");
+    importButton.type = "button";
+    importButton.textContent = "Import";
+    importButton.addEventListener("click", () => importTmdbMovie(movie.tmdbId));
+
+    const title = document.createElement("strong");
+    title.textContent = movie.title;
+
+    const meta = document.createElement("span");
+    meta.textContent = movieSubtitle(movie) || "World pick";
+
+    item.append(createPoster(movie), title, meta, importButton);
+    listElement.appendChild(item);
+  }
+}
+
+function renderHomeCollections() {
+  renderCollection(trendingWorldList, state.homeCollections.trending, "Trending picks are loading.");
+  renderCollection(topRatedWorldList, state.homeCollections.topRated, "Top-rated picks are loading.");
+  renderCollection(hindiPicksList, state.homeCollections.hindi, "Hindi picks are loading.");
+  renderCollection(hollywoodPicksList, state.homeCollections.hollywood, "Hollywood picks are loading.");
 }
 
 function renderMovieCards(listElement, movies, emptyText, { compactActions = false } = {}) {
@@ -499,6 +613,118 @@ function renderModalMovie(movie, similarMovies = []) {
   details.append(title, subtitle, overview, facts, reviewInput, actions, similarSection);
   layout.append(createPoster(movie, "detail-poster"), details);
   modalContent.appendChild(layout);
+}
+
+function renderDetailsPage(movie, similarMovies = []) {
+  const movieId = getId(movie);
+  const watchlistItem = state.watchlistByMovieId.get(movieId);
+  const rating = state.ratingsByMovieId.get(movieId);
+  detailsPageContent.innerHTML = "";
+
+  const layout = document.createElement("div");
+  layout.className = "details-layout";
+
+  const poster = createPoster(movie, "detail-poster");
+  const content = document.createElement("div");
+  content.className = "details-copy";
+
+  const kicker = document.createElement("span");
+  kicker.className = "eyebrow";
+  kicker.textContent = movie.source === "tmdb" ? "TMDB Import" : "CineWatch Library";
+
+  const title = document.createElement("h2");
+  title.textContent = movie.title;
+
+  const subtitle = document.createElement("p");
+  subtitle.className = "modal-subtitle";
+  subtitle.textContent = movieSubtitle(movie) || "Movie details";
+
+  const overview = document.createElement("p");
+  overview.className = "modal-overview";
+  overview.textContent = movie.overview || "No overview available yet.";
+
+  const facts = document.createElement("div");
+  facts.className = "fact-grid";
+
+  for (const [label, value] of [
+    ["Director", movie.director || "Unknown"],
+    ["Cast", movie.cast && movie.cast.length > 0 ? movie.cast.join(", ") : "Unknown"],
+    ["Language", movie.spokenLanguage || "Unknown"],
+    ["Runtime", movie.runtimeMinutes ? `${movie.runtimeMinutes} min` : "Unknown"],
+    ["Rating", movie.imdbRating ? `${movie.imdbRating}/10` : "Not available"],
+    ["CineWatch", statsText(movie)],
+  ]) {
+    const fact = document.createElement("div");
+    const labelElement = document.createElement("span");
+    const valueElement = document.createElement("strong");
+    labelElement.textContent = label;
+    valueElement.textContent = value;
+    fact.append(labelElement, valueElement);
+    facts.appendChild(fact);
+  }
+
+  const reviewInput = document.createElement("textarea");
+  reviewInput.className = "review-input";
+  reviewInput.placeholder = "Write your review...";
+  reviewInput.rows = 4;
+  reviewInput.value = rating?.review || "";
+
+  const ratingSelect = document.createElement("select");
+  ratingSelect.setAttribute("aria-label", `Rating for ${movie.title}`);
+
+  for (let score = 1; score <= 10; score += 1) {
+    const option = document.createElement("option");
+    option.value = String(score);
+    option.textContent = `${score}/10`;
+    ratingSelect.appendChild(option);
+  }
+
+  ratingSelect.value = rating ? String(rating.score) : "8";
+
+  const actions = document.createElement("div");
+  actions.className = "modal-actions";
+
+  const saveReviewButton = document.createElement("button");
+  saveReviewButton.type = "button";
+  saveReviewButton.textContent = "Save Rating & Review";
+  saveReviewButton.addEventListener("click", () => saveRating(movieId, Number(ratingSelect.value), reviewInput.value.trim()));
+
+  const watchlistButton = document.createElement("button");
+  watchlistButton.type = "button";
+  watchlistButton.className = watchlistItem ? "secondary danger" : "secondary";
+  watchlistButton.textContent = watchlistItem ? "Remove from Watchlist" : "Add to Watchlist";
+  watchlistButton.addEventListener("click", () => toggleWatchlist(movieId, Boolean(watchlistItem)));
+
+  actions.append(watchlistButton, ratingSelect, saveReviewButton);
+
+  const similarSection = document.createElement("div");
+  similarSection.className = "details-similar";
+  const similarTitle = document.createElement("h3");
+  similarTitle.textContent = "Similar Movies";
+  const similarList = document.createElement("ul");
+  similarList.className = "side-list";
+
+  if (similarMovies.length === 0) {
+    const item = document.createElement("li");
+    item.className = "empty-state";
+    item.textContent = "Import more movies to expand similar picks.";
+    similarList.appendChild(item);
+  } else {
+    for (const similarMovie of similarMovies.slice(0, 6)) {
+      const item = document.createElement("li");
+      const name = document.createElement("strong");
+      const meta = document.createElement("span");
+      name.textContent = similarMovie.title;
+      meta.textContent = movieSubtitle(similarMovie) || statsText(similarMovie);
+      item.append(name, meta);
+      similarList.appendChild(item);
+    }
+  }
+
+  similarSection.append(similarTitle, similarList);
+  content.append(kicker, title, subtitle, overview, facts, reviewInput, actions, similarSection);
+  layout.append(poster, content);
+  detailsPageContent.appendChild(layout);
 }
 
 function renderDashboard() {
@@ -780,19 +1006,34 @@ async function loadRecommendations() {
     : "Based on trending activity.";
 }
 
+async function loadHomeCollections() {
+  const alreadyLoaded = Object.values(state.homeCollections).some((movies) => movies.length > 0);
+
+  if (alreadyLoaded) return;
+
+  const [trending, topRated, hindi, hollywood] = await Promise.allSettled([
+    window.cineWatchApi.getWorldRecommendations({ limit: 8, minImdbRating: 7, sort: "popular" }),
+    window.cineWatchApi.getWorldRecommendations({ limit: 8, minImdbRating: 8, sort: "top" }),
+    window.cineWatchApi.getWorldRecommendations({ language: "hi", limit: 8, minImdbRating: 7, sort: "popular" }),
+    window.cineWatchApi.getWorldRecommendations({ language: "en", limit: 8, minImdbRating: 7.5, sort: "popular" }),
+  ]);
+
+  state.homeCollections.trending = trending.status === "fulfilled" ? trending.value.movies : [];
+  state.homeCollections.topRated = topRated.status === "fulfilled" ? topRated.value.movies : [];
+  state.homeCollections.hindi = hindi.status === "fulfilled" ? hindi.value.movies : [];
+  state.homeCollections.hollywood = hollywood.status === "fulfilled" ? hollywood.value.movies : [];
+}
+
 async function renderApp(search = "") {
   try {
     renderLandingHero();
 
-    if (!state.user) {
-      const data = await window.cineWatchApi.getDemoUser();
-      state.user = data.user;
-      activeUser.textContent = `Using ${state.user.name}`;
-    }
+    if (!state.user) await loadStoredUser();
 
-    await Promise.all([loadMovies(search), refreshUserData(), loadRecommendations()]);
+    await Promise.all([loadMovies(search), refreshUserData(), loadRecommendations(), loadHomeCollections()]);
     renderHero();
     renderHeroPosters();
+    renderHomeCollections();
     renderMovies();
     renderWatchlist();
     renderRecommendations();
@@ -874,6 +1115,9 @@ async function toggleWatchlist(movieId, isInWatchlist) {
     renderWatchlist();
     renderRecommendations();
     renderDashboard();
+    if (state.activeDetailMovieId === movieId && document.querySelector("#details-view").classList.contains("active")) {
+      await openMovieDetails(movieId);
+    }
   } catch (error) {
     showApiError(error);
   }
@@ -894,6 +1138,9 @@ async function saveRating(movieId, score, review = "") {
     renderWatchlist();
     renderRecommendations();
     renderDashboard();
+    if (state.activeDetailMovieId === movieId && document.querySelector("#details-view").classList.contains("active")) {
+      await openMovieDetails(movieId);
+    }
   } catch (error) {
     showApiError(error);
   }
@@ -912,14 +1159,15 @@ async function showSimilarMovies(movieId, title) {
 
 async function openMovieDetails(movieId) {
   try {
+    state.activeDetailMovieId = movieId;
     showMessage("Loading movie details...");
     const [movieData, similarData] = await Promise.all([
       window.cineWatchApi.getMovie(movieId),
       window.cineWatchApi.getSimilarMovies(movieId),
     ]);
 
-    renderModalMovie(movieData.movie, similarData.movies);
-    movieModal.showModal();
+    renderDetailsPage(movieData.movie, similarData.movies);
+    switchView("details");
     showMessage("Ready.");
   } catch (error) {
     showApiError(error);
@@ -1037,6 +1285,45 @@ clearHistoryButton.addEventListener("click", () => {
   localStorage.removeItem(historyKey);
   renderSearchHistory();
   showMessage("Search history cleared.");
+});
+
+authOpen.addEventListener("click", () => {
+  setAuthMode(authMode);
+  authDialog.showModal();
+});
+
+authClose.addEventListener("click", () => authDialog.close());
+
+authLoginTab.addEventListener("click", () => setAuthMode("login"));
+authRegisterTab.addEventListener("click", () => setAuthMode("register"));
+
+demoUserButton.addEventListener("click", async () => {
+  try {
+    await useDemoUser({ persist: true });
+    authDialog.close();
+    await renderApp(searchInput.value.trim());
+    showMessage("Demo profile loaded.");
+  } catch (error) {
+    showApiError(error);
+  }
+});
+
+authForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  try {
+    const data = authMode === "register"
+      ? await window.cineWatchApi.registerUser(authName.value.trim(), authEmail.value.trim(), authPassword.value)
+      : await window.cineWatchApi.loginUser(authEmail.value.trim(), authPassword.value);
+
+    setActiveUser(data.user, { persist: true });
+    authForm.reset();
+    authDialog.close();
+    await renderApp(searchInput.value.trim());
+    showMessage(`Signed in as ${data.user.name}.`);
+  } catch (error) {
+    showApiError(error);
+  }
 });
 
 modalClose.addEventListener("click", () => movieModal.close());

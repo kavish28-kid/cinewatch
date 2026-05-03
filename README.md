@@ -1,6 +1,30 @@
-# Cine Watch
+# CineWatch
 
-Full-stack movie watchlist app using HTML, CSS, JavaScript, Node.js, Express, and MongoDB Atlas.
+CineWatch is a full-stack movie discovery web app built with HTML, CSS, JavaScript, Node.js, Express, MongoDB Atlas, and TMDB.
+
+Live app: https://cinewatch-fk6d.onrender.com/
+
+## Features
+
+- Browse saved movies with posters, ratings, stats, and details
+- Search TMDB for real-world movie posters and metadata
+- Import TMDB movies into MongoDB
+- Add and remove movies from a personal watchlist
+- Rate movies from 1 to 10 and save short reviews
+- Use CineSense for world-ranked recommendations by category, mood, rating, and count
+- Pick a random top-rated world movie when users cannot decide
+- View a dashboard with watchlist, ratings, favorite genre, and next-pick insights
+- Use login/signup so each user has their own profile data
+- View a full movie detail page with cast, director, overview, review box, and similar movies
+- Track browser search history
+
+## Tech Stack
+
+- Frontend: HTML, CSS, JavaScript
+- Backend: Node.js, Express
+- Database: MongoDB Atlas with Mongoose
+- Movie data: TMDB API
+- Deployment: Render
 
 ## Setup
 
@@ -19,12 +43,16 @@ CORS_ORIGIN=http://localhost:3000
 TMDB_API_KEY=your_tmdb_v3_api_key
 ```
 
-If Atlas fails with `querySrv ECONNREFUSED`, your network/DNS is blocking SRV lookup. Use the direct Atlas URI format from `.env.example` instead of `mongodb+srv://`.
-
 Start the server:
 
 ```bash
 npm start
+```
+
+Open:
+
+```text
+http://localhost:3000
 ```
 
 Run tests:
@@ -39,15 +67,15 @@ Seed sample movie data:
 npm run seed
 ```
 
-## Structure
+## Project Structure
 
-- `server.js` starts the app and connects to MongoDB.
-- `src/app.js` configures Express, routes, static frontend, CORS, and error handling.
+- `server.js` starts Express and connects to MongoDB.
+- `src/app.js` configures middleware, static frontend hosting, API routes, and health checks.
 - `src/models` contains `User`, `Movie`, `Watchlist`, and `Rating`.
 - `src/controllers` contains route logic.
 - `src/routes` contains API route definitions.
-- `src/middleware` contains CORS and error handling.
-- `public` contains the browser frontend and fetch helpers.
+- `src/services/tmdbService.js` handles TMDB search, import, and world recommendations.
+- `public` contains the browser frontend.
 
 ## API Routes
 
@@ -55,12 +83,17 @@ Users:
 
 - `GET /api/users`
 - `POST /api/users`
+- `POST /api/users/register`
+- `POST /api/users/login`
+- `GET /api/users/demo`
 - `GET /api/users/:userId`
 
 Movies:
 
 - `GET /api/movies`
 - `GET /api/movies?search=inception`
+- `GET /api/movies/world?genre=Sci-Fi&minImdbRating=8&limit=6`
+- `GET /api/movies/world/random?genre=Drama&minImdbRating=8`
 - `GET /api/movies/discover?genre=Sci-Fi&minImdbRating=8&limit=5&mood=any`
 - `GET /api/movies/random?genre=Drama&minImdbRating=8`
 - `GET /api/movies/tmdb/search?query=inception`
@@ -78,7 +111,7 @@ Watchlist:
 - `DELETE /api/watchlist/:watchlistId`
 - `DELETE /api/watchlist/users/:userId/movies/:movieId`
 
-Ratings:
+Ratings and reviews:
 
 - `GET /api/ratings?userId=:userId`
 - `POST /api/ratings`
@@ -86,40 +119,36 @@ Ratings:
 
 ## Example Payloads
 
-Create a user:
+Register:
 
 ```json
 {
   "name": "Ada Lovelace",
   "email": "ada@example.com",
-  "passwordHash": "hashed-password"
+  "password": "secret123"
 }
 ```
 
-Create a movie:
+Login:
 
 ```json
 {
-  "title": "Inception",
-  "overview": "A thief enters dreams to steal secrets.",
-  "releaseYear": 2010,
-  "genres": ["Sci-Fi", "Thriller"],
-  "posterUrl": "https://example.com/inception.jpg"
+  "email": "ada@example.com",
+  "password": "secret123"
 }
 ```
 
-Add a movie to watchlist:
+Add to watchlist:
 
 ```json
 {
   "userId": "6630f0e17d95a84a6f66f111",
   "movieId": "6630f1657d95a84a6f66f222",
-  "status": "planned",
-  "notes": "Watch this weekend"
+  "status": "planned"
 }
 ```
 
-Add or update a rating:
+Add rating and review:
 
 ```json
 {
@@ -130,38 +159,21 @@ Add or update a rating:
 }
 ```
 
-## Frontend
-
-The frontend is served from `public/` when the server runs.
-
-Open:
-
-```text
-http://localhost:3000
-```
-
-Fetch helper functions are available in `public/js/api.js` as `window.cineWatchApi`.
-
 ## CineSense
 
-CineSense is the recommendation section inside CineWatch. It can recommend movies by category, mood, minimum IMDb-style rating, and result count. It also includes a random movie picker for users who do not know what to watch, plus browser search history.
+CineSense recommends from TMDB world-ranked movies, not only the movies already saved in MongoDB. Users can filter by:
 
-## TMDB Import
+- category or genre
+- mood
+- minimum rating
+- number of recommendations
+- free-text prompt
 
-Add `TMDB_API_KEY` or `TMDB_ACCESS_TOKEN` to `.env` to search real movies from TMDB. The browser can preview TMDB search results and import a selected movie into MongoDB, including poster, overview, cast, director, runtime, genres, and rating.
+World recommendations appear with posters, metadata, and a recommendation reason. A result can be imported into MongoDB, then rated or added to the user's watchlist.
 
 ## Deploy Online
 
-The simplest deployment for this project is a single Node web service because Express serves both:
-
-- the backend API from `src/`
-- the frontend from `public/`
-
-### Render
-
-1. Push this project to GitHub.
-2. In Render, create a new Web Service from the GitHub repo.
-3. Use these settings:
+Render settings:
 
 ```text
 Runtime: Node
@@ -169,9 +181,7 @@ Build Command: npm install
 Start Command: npm start
 ```
 
-The included `render.yaml` can also be used as a Render Blueprint.
-
-Set these environment variables in Render:
+Required Render environment variables:
 
 ```env
 MONGODB_URI=your_mongodb_atlas_connection_string
@@ -183,11 +193,7 @@ NODE_ENV=production
 
 Do not upload your local `.env` file to GitHub.
 
-### MongoDB Atlas Network Access
-
-For a quick college/demo deployment, allow access from `0.0.0.0/0` in MongoDB Atlas Network Access. For a stricter production setup, restrict Atlas access to your hosting provider's outbound IP strategy.
-
-After deployment, open the Render URL and test:
+Health check:
 
 ```text
 https://your-render-app.onrender.com/health

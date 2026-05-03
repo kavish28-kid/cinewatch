@@ -33,6 +33,10 @@ function getMovie(movieId) {
   return apiRequest(`/movies/${movieId}`);
 }
 
+function getUser(userId) {
+  return apiRequest(`/users/${encodeURIComponent(userId)}`);
+}
+
 function getDiscoveryRecommendations(filters = {}) {
   const params = new URLSearchParams();
 
@@ -122,6 +126,20 @@ function getDemoUser() {
   return apiRequest("/users/demo");
 }
 
+function loginUser(email, password) {
+  return apiRequest("/users/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+function registerUser(name, email, password) {
+  return apiRequest("/users/register", {
+    method: "POST",
+    body: JSON.stringify({ name, email, password }),
+  });
+}
+
 function getWatchlist(userId) {
   return apiRequest(`/watchlist?userId=${encodeURIComponent(userId)}`);
 }
@@ -162,11 +180,14 @@ window.cineWatchApi = {
   getRandomMovie,
   getRatings,
   getSimilarMovies,
+  getUser,
   getWatchlist,
   getWorldRandomMovie,
   getWorldRecommendations,
   importTmdbMovie,
+  loginUser,
   rateMovie,
+  registerUser,
   removeFromWatchlist,
   searchTmdbMovies,
 };

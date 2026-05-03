@@ -216,14 +216,16 @@ async function discoverTopRatedMovies(filters = {}) {
   const genreIds = genreIdsForFilters(filters);
   const minRating = Number(filters.minImdbRating || filters.minRating || 7);
   const page = Math.min(Math.max(Number(filters.page || 1), 1), 20);
+  const sortBy = filters.sort === "popular" ? "popularity.desc" : "vote_average.desc";
   const data = await tmdbRequest("/discover/movie", {
     include_adult: "false",
     include_video: "false",
     language: "en-US",
     page: String(page),
-    sort_by: "vote_average.desc",
+    sort_by: sortBy,
     "vote_average.gte": Number.isFinite(minRating) ? String(Math.min(minRating, 10)) : "7",
-    "vote_count.gte": "1000",
+    "vote_count.gte": filters.sort === "popular" ? "250" : "1000",
+    with_original_language: filters.language || undefined,
     with_genres: genreIds.length > 0 ? genreIds.join("|") : undefined,
   });
   const movies = (data.results || []).map(normalizeSearchMovie);
