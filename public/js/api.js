@@ -73,6 +73,30 @@ function getRandomMovie(filters = {}) {
   return apiRequest(`/movies/random?${params.toString()}`);
 }
 
+function getWorldRecommendations(filters = {}) {
+  const params = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== "") {
+      params.set(key, value);
+    }
+  }
+
+  return apiRequest(`/movies/world?${params.toString()}`);
+}
+
+function getWorldRandomMovie(filters = {}) {
+  const params = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== "") {
+      params.set(key, value);
+    }
+  }
+
+  return apiRequest(`/movies/world/random?${params.toString()}`);
+}
+
 function searchTmdbMovies(query) {
   return apiRequest(`/movies/tmdb/search?query=${encodeURIComponent(query)}`);
 }
@@ -139,6 +163,8 @@ window.cineWatchApi = {
   getRatings,
   getSimilarMovies,
   getWatchlist,
+  getWorldRandomMovie,
+  getWorldRecommendations,
   importTmdbMovie,
   rateMovie,
   removeFromWatchlist,

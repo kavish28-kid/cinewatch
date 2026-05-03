@@ -67,7 +67,7 @@ const fallbackPosterUrls = {
 };
 
 function getId(record) {
-  return record.id || record._id;
+  return record ? record.id || record._id : undefined;
 }
 
 function showMessage(text) {
@@ -252,8 +252,9 @@ function renderMovieCards(listElement, movies, emptyText, { compactActions = fal
 
   for (const movie of movies) {
     const movieId = getId(movie);
-    const watchlistItem = state.watchlistByMovieId.get(movieId);
-    const rating = state.ratingsByMovieId.get(movieId);
+    const isStoredMovie = Boolean(movieId);
+    const watchlistItem = isStoredMovie ? state.watchlistByMovieId.get(movieId) : null;
+    const rating = isStoredMovie ? state.ratingsByMovieId.get(movieId) : null;
     const item = document.createElement("li");
     item.className = "movie-card";
     const poster = createPoster(movie, "card-poster");
@@ -263,15 +264,17 @@ function renderMovieCards(listElement, movies, emptyText, { compactActions = fal
 
     const title = document.createElement("h3");
     title.textContent = movie.title;
-    title.tabIndex = 0;
-    title.className = "clickable-title";
-    title.addEventListener("click", () => openMovieDetails(movieId));
-    title.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        openMovieDetails(movieId);
-      }
-    });
+    if (isStoredMovie) {
+      title.tabIndex = 0;
+      title.className = "clickable-title";
+      title.addEventListener("click", () => openMovieDetails(movieId));
+      title.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openMovieDetails(movieId);
+        }
+      });
+    }
 
     const subtitle = document.createElement("p");
     subtitle.textContent = movieSubtitle(movie) || "Movie";
@@ -290,7 +293,9 @@ function renderMovieCards(listElement, movies, emptyText, { compactActions = fal
 
     const ratingText = document.createElement("span");
     ratingText.className = "badge";
-    ratingText.textContent = rating ? `Rated ${rating.score}/10` : "Not rated";
+    ratingText.textContent = isStoredMovie
+      ? (rating ? `Rated ${rating.score}/10` : "Not rated")
+      : "World pick";
     const reviewText = document.createElement("p");
     reviewText.className = "review-snippet";
     reviewText.textContent = rating?.review ? `"${rating.review}"` : "";
@@ -300,7 +305,11 @@ function renderMovieCards(listElement, movies, emptyText, { compactActions = fal
     if (credit.textContent) details.appendChild(credit);
     if (overview.textContent) details.appendChild(overview);
 
-    details.append(stats, ratingText);
+    if (isStoredMovie) {
+      details.append(stats, ratingText);
+    } else {
+      details.appendChild(ratingText);
+    }
 
     if (reviewText.textContent) {
       details.appendChild(reviewText);
@@ -315,6 +324,18 @@ function renderMovieCards(listElement, movies, emptyText, { compactActions = fal
 
     const controls = document.createElement("div");
     controls.className = "movie-actions";
+
+    if (!isStoredMovie && movie.tmdbId) {
+      const importButton = document.createElement("button");
+      importButton.type = "button";
+      importButton.textContent = "Import";
+      importButton.addEventListener("click", () => importTmdbMovie(movie.tmdbId));
+
+      controls.appendChild(importButton);
+      item.append(poster, details, controls);
+      listElement.appendChild(item);
+      continue;
+    }
 
     const watchlistButton = document.createElement("button");
     watchlistButton.type = "button";
@@ -735,10 +756,14 @@ async function refreshUserData() {
   ]);
 
   state.watchlistByMovieId = new Map(
-    watchlistData.watchlist.map((item) => [getId(item.movie), item]),
+    watchlistData.watchlist
+      .filter((item) => getId(item.movie))
+      .map((item) => [getId(item.movie), item]),
   );
   state.ratingsByMovieId = new Map(
-    ratingsData.ratings.map((rating) => [getId(rating.movie), rating]),
+    ratingsData.ratings
+      .filter((rating) => getId(rating.movie))
+      .map((rating) => [getId(rating.movie), rating]),
   );
 }
 
@@ -795,19 +820,17 @@ function readSenseFilters() {
 async function runCineSense() {
   try {
     const filters = readSenseFilters();
-    const data = filters.prompt?.trim()
-      ? await window.cineWatchApi.getAiRecommendations({
-        ...filters,
-        userId: getId(state.user),
-      })
-      : await window.cineWatchApi.getDiscoveryRecommendations(filters);
+    const data = await window.cineWatchApi.getWorldRecommendations({
+      ...filters,
+      userId: getId(state.user),
+    });
     state.senseResults = data.movies;
     renderMovieCards(
       senseResultsList,
       state.senseResults,
       "No movies match those filters yet.",
     );
-    showMessage(`Found ${state.senseResults.length} CineSense recommendations.`);
+    showMessage(`Found ${state.senseResults.length} world-ranked CineSense recommendations.`);
   } catch (error) {
     showApiError(error);
   }
@@ -815,14 +838,14 @@ async function runCineSense() {
 
 async function runRandomPicker() {
   try {
-    const data = await window.cineWatchApi.getRandomMovie(readSenseFilters());
+    const data = await window.cineWatchApi.getWorldRandomMovie(readSenseFilters());
     state.senseResults = data.movie ? [data.movie] : [];
     renderMovieCards(
       senseResultsList,
       state.senseResults,
-      "No random pick matched those filters.",
+      "No world random pick matched those filters.",
     );
-    showMessage(data.movie ? "Random pick ready." : "No random pick found.");
+    showMessage(data.movie ? "World random pick ready." : "No random pick found.");
   } catch (error) {
     showApiError(error);
   }
@@ -840,9 +863,13 @@ async function toggleWatchlist(movieId, isInWatchlist) {
       showMessage("Added to watchlist.");
     }
 
-    await refreshUserData();
-    await loadRecommendations();
+    await Promise.all([
+      refreshUserData(),
+      loadMovies(searchInput.value.trim()),
+      loadRecommendations(),
+    ]);
     renderHero();
+    renderHeroPosters();
     renderMovies();
     renderWatchlist();
     renderRecommendations();
@@ -856,10 +883,15 @@ async function saveRating(movieId, score, review = "") {
   try {
     await window.cineWatchApi.rateMovie(getId(state.user), movieId, score, review);
     showMessage(`Rated ${score}/10.`);
-    await refreshUserData();
-    await loadRecommendations();
+    await Promise.all([
+      refreshUserData(),
+      loadMovies(searchInput.value.trim()),
+      loadRecommendations(),
+    ]);
     renderHero();
+    renderHeroPosters();
     renderMovies();
+    renderWatchlist();
     renderRecommendations();
     renderDashboard();
   } catch (error) {
@@ -896,9 +928,17 @@ async function openMovieDetails(movieId) {
 
 async function importTmdbMovie(tmdbId) {
   try {
-    await window.cineWatchApi.importTmdbMovie(tmdbId);
+    const data = await window.cineWatchApi.importTmdbMovie(tmdbId);
     state.tmdbResults = state.tmdbResults.filter((movie) => String(movie.tmdbId) !== String(tmdbId));
+    state.senseResults = state.senseResults.map((movie) => (
+      String(movie.tmdbId) === String(tmdbId) ? data.movie : movie
+    ));
     renderTmdbResults();
+    renderMovieCards(
+      senseResultsList,
+      state.senseResults,
+      "No movies match those filters yet.",
+    );
     showMessage("Imported movie into CineWatch.");
     await renderApp(searchInput.value.trim());
   } catch (error) {

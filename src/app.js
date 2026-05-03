@@ -47,7 +47,10 @@ app.get("/health", (req, res) => {
 app.use(
   "/api/movies",
   (req, res, next) => {
-    if (req.method === "GET" && req.path === "/tmdb/search") {
+    if (
+      req.method === "GET" &&
+      (req.path === "/tmdb/search" || req.path === "/world" || req.path === "/world/random")
+    ) {
       return next();
     }
 

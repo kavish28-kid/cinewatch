@@ -308,6 +308,58 @@ function buildAiReason(movie, promptFilters, taste) {
   return reasons.length > 0 ? reasons.join(" | ") : "balanced CineSense AI pick";
 }
 
+function selectedValue(value) {
+  return value && value !== "any" ? value : undefined;
+}
+
+function worldFiltersFromQuery(query = {}) {
+  const promptFilters = readPromptFilters(query.prompt || "");
+  const genre = selectedValue(query.genre || query.category);
+  const mood = selectedValue(query.mood);
+  const minFromQuery = Number(query.minImdbRating || query.minRating || 0);
+  const minImdbRating = Math.max(
+    Number.isFinite(minFromQuery) ? minFromQuery : 0,
+    promptFilters.minImdbRating || 0,
+    7,
+  );
+
+  return {
+    genre,
+    genres: genre ? [genre] : promptFilters.genres,
+    limit: clampLimit(query.limit, 8),
+    minImdbRating,
+    mood,
+    moods: mood ? [mood] : promptFilters.moods,
+    prompt: query.prompt || "",
+  };
+}
+
+function buildWorldReason(movie, filters) {
+  const reasons = ["world top-rated TMDB pick"];
+
+  if (filters.genre && movie.genres.includes(filters.genre)) {
+    reasons.push(`matches ${filters.genre}`);
+  }
+
+  if (!filters.genre && filters.genres?.length > 0) {
+    const matchedGenres = movie.genres.filter((genre) => filters.genres.includes(genre));
+
+    if (matchedGenres.length > 0) {
+      reasons.push(`matches ${matchedGenres.join(", ")}`);
+    }
+  }
+
+  if (movie.imdbRating) {
+    reasons.push(`${movie.imdbRating}/10 TMDB rating`);
+  }
+
+  if (movie.releaseYear) {
+    reasons.push(`released in ${movie.releaseYear}`);
+  }
+
+  return reasons.join(" | ");
+}
+
 function scoreAiMovie(movie, stats, promptFilters, taste) {
   let score = movie.imdbRating || 0;
 
@@ -631,6 +683,34 @@ async function getAiRecommendations(req, res) {
   });
 }
 
+async function getWorldRecommendations(req, res) {
+  const filters = worldFiltersFromQuery(req.query);
+  const movies = await tmdbService.discoverTopRatedMovies(filters);
+
+  res.json({
+    filters,
+    movies: movies.map((movie) => ({
+      ...movie,
+      recommendationReason: buildWorldReason(movie, filters),
+    })),
+  });
+}
+
+async function getWorldRandomMovie(req, res) {
+  const filters = worldFiltersFromQuery(req.query);
+  const movie = await tmdbService.getRandomTopRatedMovie(filters);
+
+  res.json({
+    filters,
+    movie: movie
+      ? {
+        ...movie,
+        recommendationReason: `random world pick: ${buildWorldReason(movie, filters)}`,
+      }
+      : null,
+  });
+}
+
 async function getRandomMovie(req, res) {
   const filter = buildDiscoveryFilter(req.query);
   const movies = await Movie.aggregate([
@@ -663,6 +743,8 @@ module.exports = {
   getRandomMovie,
   getRecommendations,
   getSimilarMovies,
+  getWorldRandomMovie,
+  getWorldRecommendations,
   importTmdbMovie,
   searchTmdbMovies,
 };

@@ -27,6 +27,19 @@ const genreMap = new Map([
   [10770, "TV Movie"],
 ]);
 
+const genreIdByName = new Map(
+  [...genreMap.entries()].map(([id, name]) => [name.toLowerCase(), id]),
+);
+
+const moodGenreIds = new Map([
+  ["emotional", [18, 10749, 10402]],
+  ["fun", [35, 12, 16, 10751]],
+  ["inspiring", [18, 36, 99]],
+  ["intense", [28, 53, 80, 10752]],
+  ["mind-bending", [878, 9648, 53]],
+  ["romantic", [10749, 18]],
+]);
+
 function ensureCredentials() {
   if (!process.env.TMDB_ACCESS_TOKEN && !process.env.TMDB_API_KEY) {
     throw createHttpError(
@@ -56,6 +69,37 @@ function moodTagsFromGenres(genres) {
   }
 
   return [...tags];
+}
+
+function genreIdsForFilters(filters = {}) {
+  const ids = new Set();
+  const genres = [
+    filters.genre,
+    ...(Array.isArray(filters.genres) ? filters.genres : []),
+  ].filter(Boolean);
+  const moods = [
+    filters.mood,
+    ...(Array.isArray(filters.moods) ? filters.moods : []),
+  ].filter(Boolean);
+
+  for (const genre of genres) {
+    if (genre === "any") continue;
+    const genreId = genreIdByName.get(String(genre).toLowerCase());
+
+    if (genreId) ids.add(genreId);
+  }
+
+  if (ids.size === 0) {
+    for (const mood of moods) {
+      if (mood === "any") continue;
+
+      for (const genreId of moodGenreIds.get(String(mood).toLowerCase()) || []) {
+        ids.add(genreId);
+      }
+    }
+  }
+
+  return [...ids];
 }
 
 async function tmdbRequest(path, params = {}) {
@@ -167,6 +211,41 @@ async function searchMovies(query) {
   return (data.results || []).slice(0, 12).map(normalizeSearchMovie);
 }
 
+async function discoverTopRatedMovies(filters = {}) {
+  const limit = Math.min(Math.max(Number(filters.limit || 8), 1), 20);
+  const genreIds = genreIdsForFilters(filters);
+  const minRating = Number(filters.minImdbRating || filters.minRating || 7);
+  const page = Math.min(Math.max(Number(filters.page || 1), 1), 20);
+  const data = await tmdbRequest("/discover/movie", {
+    include_adult: "false",
+    include_video: "false",
+    language: "en-US",
+    page: String(page),
+    sort_by: "vote_average.desc",
+    "vote_average.gte": Number.isFinite(minRating) ? String(Math.min(minRating, 10)) : "7",
+    "vote_count.gte": "1000",
+    with_genres: genreIds.length > 0 ? genreIds.join("|") : undefined,
+  });
+  const movies = (data.results || []).map(normalizeSearchMovie);
+  const moviesWithPosters = movies.filter((movie) => movie.posterUrl);
+
+  return (moviesWithPosters.length > 0 ? moviesWithPosters : movies).slice(0, limit);
+}
+
+async function getRandomTopRatedMovie(filters = {}) {
+  const movies = await discoverTopRatedMovies({
+    ...filters,
+    limit: 20,
+    page: Math.floor(Math.random() * 5) + 1,
+  });
+
+  if (movies.length === 0) {
+    return null;
+  }
+
+  return movies[Math.floor(Math.random() * movies.length)];
+}
+
 async function getMovieDetails(tmdbId) {
   if (!tmdbId) {
     throw createHttpError(400, "tmdbId is required");
@@ -181,6 +260,8 @@ async function getMovieDetails(tmdbId) {
 }
 
 module.exports = {
+  discoverTopRatedMovies,
   getMovieDetails,
+  getRandomTopRatedMovie,
   searchMovies,
 };

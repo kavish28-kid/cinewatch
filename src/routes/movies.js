@@ -11,6 +11,8 @@ const {
   getRandomMovie,
   getRecommendations,
   getSimilarMovies,
+  getWorldRandomMovie,
+  getWorldRecommendations,
   importTmdbMovie,
   searchTmdbMovies,
 } = require("../controllers/movieController");
@@ -26,6 +28,8 @@ router.get("/random", asyncHandler(getRandomMovie));
 router.get("/recommendations", asyncHandler(getRecommendations));
 router.get("/tmdb/search", asyncHandler(searchTmdbMovies));
 router.post("/tmdb/:tmdbId/import", asyncHandler(importTmdbMovie));
+router.get("/world", asyncHandler(getWorldRecommendations));
+router.get("/world/random", asyncHandler(getWorldRandomMovie));
 router.get("/:movieId", asyncHandler(getMovie));
 router.get("/:movieId/similar", asyncHandler(getSimilarMovies));
 router.get("/:movieId/stats", asyncHandler(getMovieStats));
