@@ -107,6 +107,28 @@ const historyKey = "cinewatch-search-history";
 const userKey = "cinewatch-active-user-id";
 let authMode = "login";
 let choiceResolver = null;
+const industryLabels = {
+  anime: "Anime",
+  arabic: "Arabic Cinema",
+  bengali: "Bengali Cinema",
+  bollywood: "Bollywood",
+  chinese: "Chinese Cinema",
+  cult: "Cult & Uncommon",
+  documentary: "Documentary",
+  french: "French Cinema",
+  "hidden-world": "Hidden World Cinema",
+  hollywood: "Hollywood",
+  iranian: "Iranian Cinema",
+  japanese: "Japanese Cinema",
+  kollywood: "Kollywood",
+  marathi: "Marathi Cinema",
+  mollywood: "Mollywood",
+  sandalwood: "Sandalwood",
+  spanish: "Spanish Language",
+  tollywood: "Tollywood",
+  turkish: "Turkish Cinema",
+  korean: "Korean Wave",
+};
 const fallbackPosterUrls = {
   "3 idiots": "https://upload.wikimedia.org/wikipedia/en/d/df/3_idiots_poster.jpg",
   avengers: "https://upload.wikimedia.org/wikipedia/en/0/0d/Avengers_Endgame_poster.jpg",
@@ -1096,23 +1118,93 @@ function renderSimilarMovies() {
 
 function readSearchHistory() {
   try {
-    return JSON.parse(localStorage.getItem(historyKey)) || [];
+    return (JSON.parse(localStorage.getItem(historyKey)) || []).map((entry) => ({
+      filters: entry.filters || {},
+      query: entry.query || "",
+      searchedAt: entry.searchedAt || "",
+      type: entry.type || "library",
+      where: entry.where || "Library Search",
+    }));
   } catch (error) {
     return [];
   }
 }
 
-function saveSearch(query) {
+function filterSummary(filters = {}) {
+  const prompt = String(filters.prompt || "").trim();
+
+  if (prompt) return prompt;
+
+  const parts = [];
+
+  if (filters.industry && filters.industry !== "any") {
+    parts.push(industryLabels[filters.industry] || filters.industry);
+  }
+
+  if (filters.genre && filters.genre !== "any") parts.push(filters.genre);
+  if (filters.mood && filters.mood !== "any") parts.push(filters.mood);
+  if (filters.minImdbRating) parts.push(`${filters.minImdbRating}+ rating`);
+  if (filters.limit) parts.push(`${filters.limit} picks`);
+
+  return parts.length > 0 ? parts.join(" / ") : "World recommendations";
+}
+
+function saveSearch(query, { filters = {}, type = "library", where = "Library Search" } = {}) {
   if (!query) return;
 
-  const history = readSearchHistory().filter((item) => item.query !== query);
+  const history = readSearchHistory().filter((item) => (
+    item.query !== query || item.where !== where
+  ));
   history.unshift({
+    filters,
     query,
     searchedAt: new Date().toLocaleString(),
+    type,
+    where,
   });
 
   localStorage.setItem(historyKey, JSON.stringify(history.slice(0, 12)));
   renderSearchHistory();
+}
+
+async function replaySearchHistory(entry) {
+  const filters = entry.filters || {};
+
+  if (entry.type === "tmdb") {
+    switchView("browse");
+    tmdbQuery.value = entry.query;
+    tmdbForm.requestSubmit();
+    return;
+  }
+
+  if (entry.type === "cinebot") {
+    switchView("cinesense");
+    cinebotPrompt.value = entry.query;
+    cinebotForm.requestSubmit();
+    return;
+  }
+
+  if (["cinesense", "industry", "mood", "random"].includes(entry.type)) {
+    switchView("cinesense");
+    senseForm.elements.prompt.value = filters.prompt || entry.query;
+    senseForm.elements.industry.value = filters.industry || "any";
+    senseForm.elements.genre.value = filters.genre || "any";
+    senseForm.elements.mood.value = filters.mood || "any";
+    senseForm.elements.minImdbRating.value = filters.minImdbRating || "8";
+    senseForm.elements.limit.value = filters.limit || "6";
+
+    if (entry.type === "random") {
+      await runRandomPicker();
+    } else {
+      await runCineSense({ saveHistory: false });
+    }
+
+    return;
+  }
+
+  searchInput.value = entry.query;
+  switchView("browse");
+  renderApp(entry.query);
 }
 
 function renderSearchHistory() {
@@ -1129,19 +1221,23 @@ function renderSearchHistory() {
 
   for (const entry of history) {
     const item = document.createElement("li");
+    item.className = "history-item";
     const button = document.createElement("button");
     button.className = "secondary";
     button.type = "button";
     button.textContent = entry.query;
-    button.addEventListener("click", () => {
-      searchInput.value = entry.query;
-      switchView("browse");
-      renderApp(entry.query);
-    });
+    button.addEventListener("click", () => replaySearchHistory(entry).catch(showApiError));
 
-    const meta = document.createElement("span");
-    meta.textContent = entry.searchedAt;
+    const meta = document.createElement("div");
+    meta.className = "history-meta";
 
+    const where = document.createElement("strong");
+    where.textContent = entry.where;
+
+    const searchedAt = document.createElement("span");
+    searchedAt.textContent = entry.searchedAt;
+
+    meta.append(where, searchedAt);
     item.append(button, meta);
     historyList.appendChild(item);
   }
@@ -1407,7 +1503,7 @@ function readQuizFilters() {
   return filters;
 }
 
-async function runCineSense() {
+async function runCineSense({ saveHistory = true, sourceType = "cinesense", sourceWhere = "CineSense" } = {}) {
   try {
     setLoading("cinesense", true, "Finding world-ranked recommendations...");
     renderSenseLoading();
@@ -1424,6 +1520,13 @@ async function runCineSense() {
     );
     showMessage(`Found ${state.senseResults.length} world-ranked CineSense recommendations.`);
     showToast("CineSense ready", `${state.senseResults.length} world-ranked picks found.`);
+    if (saveHistory) {
+      saveSearch(filterSummary(filters), {
+        filters,
+        type: sourceType,
+        where: sourceWhere,
+      });
+    }
   } catch (error) {
     showApiError(error);
   } finally {
@@ -1457,7 +1560,11 @@ async function runCineBot(event) {
         : "No clean match came back. Try lowering the rating or changing the genre.",
       data.movies,
     );
-    saveSearch(prompt);
+    saveSearch(prompt, {
+      filters: cinebotFiltersFromPrompt(prompt),
+      type: "cinebot",
+      where: "CineBot",
+    });
     showMessage(`CineBot found ${data.movies.length} picks.`);
     showToast("CineBot answered", `${data.movies.length} world-ranked picks found.`);
   } catch (error) {
@@ -1474,11 +1581,17 @@ async function runMoodQuiz(event) {
   try {
     setLoading("mood-quiz", true, "Locking mood and finding movies...");
     renderMiniLoading(quizResultsList, 4);
-    const data = await window.cineWatchApi.getWorldRecommendations(readQuizFilters());
+    const filters = readQuizFilters();
+    const data = await window.cineWatchApi.getWorldRecommendations(filters);
     state.quizResults = data.movies;
     renderMiniResults(quizResultsList, state.quizResults, "No mood-lock picks found.");
     showMessage(`Mood Lock found ${state.quizResults.length} picks.`);
     showToast("Mood Lock ready", `${state.quizResults.length} picks for the room.`);
+    saveSearch(filterSummary(filters), {
+      filters,
+      type: "mood",
+      where: "Mood Lock",
+    });
   } catch (error) {
     showApiError(error);
   } finally {
@@ -1499,14 +1612,18 @@ async function runIndustryLens(industry) {
     senseForm.elements.prompt.value = "";
   }
 
-  await runCineSense();
+  await runCineSense({
+    sourceType: "industry",
+    sourceWhere: "Industry Lens",
+  });
 }
 
 async function runRandomPicker() {
   try {
     setLoading("cinesense", true, "Picking a world-ranked movie...");
     renderSenseLoading();
-    const data = await window.cineWatchApi.getWorldRandomMovie(readSenseFilters());
+    const filters = readSenseFilters();
+    const data = await window.cineWatchApi.getWorldRandomMovie(filters);
     state.senseResults = data.movie ? [data.movie] : [];
     renderMovieCards(
       senseResultsList,
@@ -1515,6 +1632,11 @@ async function runRandomPicker() {
     );
     showMessage(data.movie ? "World random pick ready." : "No random pick found.");
     if (data.movie) showToast("Random pick ready", data.movie.title);
+    saveSearch(filterSummary(filters), {
+      filters,
+      type: "random",
+      where: "Random Picker",
+    });
   } catch (error) {
     showApiError(error);
   } finally {
@@ -1756,7 +1878,10 @@ tmdbForm.addEventListener("submit", async (event) => {
     renderTmdbResults();
     const data = await window.cineWatchApi.searchTmdbMovies(query);
     state.tmdbResults = data.movies;
-    saveSearch(query);
+    saveSearch(query, {
+      type: "tmdb",
+      where: "Poster Universe",
+    });
     renderTmdbResults();
     showMessage(`Found ${state.tmdbResults.length} TMDB results.`);
     showToast("Poster search ready", `${state.tmdbResults.length} results found.`);
@@ -1772,7 +1897,10 @@ searchInput.addEventListener("input", () => {
   window.clearTimeout(searchInput.searchTimeout);
   searchInput.searchTimeout = window.setTimeout(() => {
     const query = searchInput.value.trim();
-    saveSearch(query);
+    saveSearch(query, {
+      type: "library",
+      where: "Library Search",
+    });
     renderApp(query);
   }, 250);
 });

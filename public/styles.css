@@ -915,6 +915,34 @@ aside {
   padding-bottom: 8px;
 }
 
+.history-item button {
+  min-width: min(280px, 52vw);
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-meta {
+  display: grid;
+  gap: 3px;
+  justify-items: end;
+  min-width: 150px;
+  text-align: right;
+}
+
+.history-meta strong {
+  color: #f8e3a9;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.history-meta span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .history-list li:last-child {
   border-bottom: 0;
   padding-bottom: 0;
@@ -3856,6 +3884,23 @@ button,
 }
 
 @media (max-width: 640px) {
+  .history-item {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .history-item button {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .history-meta {
+    justify-items: start;
+    min-width: 0;
+    text-align: left;
+  }
+
   .industry-lens {
     border-radius: 12px;
     padding: 14px;
