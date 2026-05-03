@@ -42,12 +42,37 @@
       <section class="status-strip">
         <div id="message" role="status"></div>
       </section>
+      <div id="toast-stack" class="toast-stack" aria-live="polite" aria-atomic="false"></div>
 
       <section class="cinema-marquee" aria-label="Cine Watch highlights">
         <span>Now Showing</span>
         <span>Premium Picks</span>
         <span>Large Format Mood</span>
         <span>AI Recommendations</span>
+      </section>
+
+      <section class="live-pulse horror-pulse" aria-label="Live CineWatch animation">
+        <div class="pulse-copy">
+          <span class="eyebrow">Midnight CinePulse</span>
+          <strong>Tonight's horror signal</strong>
+        </div>
+        <div class="pulse-visual" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="film-runner" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
       </section>
 
       <section class="content-grid app-view active" id="browse-view">
@@ -289,6 +314,18 @@
           <button id="demo-user-button" class="secondary" type="button">Use Demo User</button>
         </section>
       </form>
+    </dialog>
+
+    <dialog id="choice-dialog" class="choice-dialog">
+      <div class="choice-shell">
+        <span class="eyebrow" id="choice-kicker">CineWatch</span>
+        <h2 id="choice-title">Confirm action</h2>
+        <p id="choice-copy">Choose what should happen next.</p>
+        <div class="choice-actions">
+          <button id="choice-cancel" class="secondary" type="button">Cancel</button>
+          <button id="choice-confirm" type="button">Continue</button>
+        </div>
+      </div>
     </dialog>
 
     <dialog id="movie-modal" class="movie-modal">

@@ -16,6 +16,12 @@ const authRegisterTab = document.querySelector("#auth-register-tab");
 const authSubmit = document.querySelector("#auth-submit");
 const authTitle = document.querySelector("#auth-title");
 const clearHistoryButton = document.querySelector("#clear-history");
+const choiceCancel = document.querySelector("#choice-cancel");
+const choiceConfirm = document.querySelector("#choice-confirm");
+const choiceCopy = document.querySelector("#choice-copy");
+const choiceDialog = document.querySelector("#choice-dialog");
+const choiceKicker = document.querySelector("#choice-kicker");
+const choiceTitle = document.querySelector("#choice-title");
 const demoUserButton = document.querySelector("#demo-user-button");
 const detailsPageContent = document.querySelector("#details-page-content");
 const heroCinesenseButton = document.querySelector("#hero-cinesense");
@@ -51,6 +57,7 @@ const menuLinks = document.querySelectorAll(".menu-link");
 const tmdbForm = document.querySelector("#tmdb-form");
 const tmdbQuery = document.querySelector("#tmdb-query");
 const tmdbResultsList = document.querySelector("#tmdb-results");
+const toastStack = document.querySelector("#toast-stack");
 const watchlistList = document.querySelector("#watchlist");
 const favoriteGenres = document.querySelector("#favorite-genres");
 const hindiPicksList = document.querySelector("#hindi-picks");
@@ -84,6 +91,7 @@ const state = {
 const historyKey = "cinewatch-search-history";
 const userKey = "cinewatch-active-user-id";
 let authMode = "login";
+let choiceResolver = null;
 const fallbackPosterUrls = {
   "3 idiots": "https://upload.wikimedia.org/wikipedia/en/d/df/3_idiots_poster.jpg",
   avengers: "https://upload.wikimedia.org/wikipedia/en/0/0d/Avengers_Endgame_poster.jpg",
@@ -104,6 +112,51 @@ function showMessage(text) {
   message.textContent = text;
 }
 
+function showToast(title, body = "", variant = "default") {
+  const toast = document.createElement("div");
+  toast.className = `toast ${variant}`.trim();
+
+  const heading = document.createElement("strong");
+  heading.textContent = title;
+  toast.appendChild(heading);
+
+  if (body) {
+    const copy = document.createElement("span");
+    copy.textContent = body;
+    toast.appendChild(copy);
+  }
+
+  toastStack.appendChild(toast);
+  window.setTimeout(() => toast.classList.add("visible"), 20);
+  window.setTimeout(() => {
+    toast.classList.remove("visible");
+    window.setTimeout(() => toast.remove(), 220);
+  }, 3600);
+}
+
+function resolveChoice(value) {
+  if (choiceResolver) {
+    choiceResolver(value);
+    choiceResolver = null;
+  }
+
+  choiceDialog.close();
+}
+
+function askChoice({ title, copy, confirmText = "Continue", kicker = "CineWatch", danger = false }) {
+  choiceKicker.textContent = kicker;
+  choiceTitle.textContent = title;
+  choiceCopy.textContent = copy;
+  choiceConfirm.textContent = confirmText;
+  choiceConfirm.classList.toggle("danger", danger);
+  choiceConfirm.classList.toggle("secondary", danger);
+  choiceDialog.showModal();
+
+  return new Promise((resolve) => {
+    choiceResolver = resolve;
+  });
+}
+
 function setLoading(key, isLoading, text = "Working...") {
   if (isLoading) {
     state.loading.add(key);
@@ -120,9 +173,11 @@ function isLoading(key) {
 function showApiError(error) {
   if (error.message.toLowerCase().includes("invalid api key")) {
     showMessage("TMDB key is invalid on Render. Update TMDB_API_KEY in Render, then redeploy.");
+    showToast("TMDB key issue", "Update the Render environment variable.", "danger");
     return;
   }
 
+  showToast("Action failed", error.message, "danger");
   showMessage(
     error.message === "database connection unavailable"
       ? "Database is offline. Check MongoDB Atlas Network Access or switch to mobile hotspot."
@@ -355,7 +410,7 @@ function renderCollection(listElement, movies, emptyText) {
     const importButton = document.createElement("button");
     importButton.type = "button";
     importButton.textContent = "Import";
-    importButton.addEventListener("click", () => importTmdbMovie(movie.tmdbId));
+    importButton.addEventListener("click", () => requestImportMovie(movie));
 
     const title = document.createElement("strong");
     title.textContent = movie.title;
@@ -465,7 +520,7 @@ function renderMovieCards(listElement, movies, emptyText, { compactActions = fal
       const importButton = document.createElement("button");
       importButton.type = "button";
       importButton.textContent = "Import";
-      importButton.addEventListener("click", () => importTmdbMovie(movie.tmdbId));
+      importButton.addEventListener("click", () => requestImportMovie(movie));
 
       controls.appendChild(importButton);
       item.append(poster, details, controls);
@@ -721,7 +776,7 @@ function renderDetailsPage(movie, similarMovies = []) {
   deleteButton.type = "button";
   deleteButton.className = "secondary danger";
   deleteButton.textContent = "Delete Movie";
-  deleteButton.addEventListener("click", () => deleteStoredMovie(movieId, movie.title));
+  deleteButton.addEventListener("click", () => requestDeleteStoredMovie(movieId, movie.title));
 
   actions.append(watchlistButton, ratingSelect, saveReviewButton, deleteButton);
 
@@ -832,7 +887,7 @@ function renderTmdbResults() {
     const importButton = document.createElement("button");
     importButton.type = "button";
     importButton.textContent = "Import";
-    importButton.addEventListener("click", () => importTmdbMovie(movie.tmdbId));
+    importButton.addEventListener("click", () => requestImportMovie(movie));
 
     details.append(title, subtitle, overview, importButton);
     item.append(poster, details);
@@ -1123,6 +1178,7 @@ async function runCineSense() {
       "No movies match those filters yet.",
     );
     showMessage(`Found ${state.senseResults.length} world-ranked CineSense recommendations.`);
+    showToast("CineSense ready", `${state.senseResults.length} world-ranked picks found.`);
   } catch (error) {
     showApiError(error);
   } finally {
@@ -1142,6 +1198,7 @@ async function runRandomPicker() {
       "No world random pick matched those filters.",
     );
     showMessage(data.movie ? "World random pick ready." : "No random pick found.");
+    if (data.movie) showToast("Random pick ready", data.movie.title);
   } catch (error) {
     showApiError(error);
   } finally {
@@ -1157,9 +1214,11 @@ async function toggleWatchlist(movieId, isInWatchlist) {
     if (isInWatchlist) {
       await window.cineWatchApi.removeFromWatchlist(userId, movieId);
       showMessage("Removed from watchlist.");
+      showToast("Watchlist updated", "Movie removed from your list.");
     } else {
       await window.cineWatchApi.addToWatchlist(userId, movieId);
       showMessage("Added to watchlist.");
+      showToast("Added to watchlist", "Saved for later.");
     }
 
     await Promise.all([
@@ -1188,6 +1247,7 @@ async function saveRating(movieId, score, review = "") {
     setLoading(`rating-${movieId}`, true, "Saving rating and review...");
     await window.cineWatchApi.rateMovie(getId(state.user), movieId, score, review);
     showMessage(`Rated ${score}/10.`);
+    showToast("Rating saved", review ? "Your rating and review were saved." : `Rated ${score}/10.`);
     await Promise.all([
       refreshUserData(),
       loadMovies(searchInput.value.trim()),
@@ -1215,6 +1275,7 @@ async function showSimilarMovies(movieId, title) {
     state.similarMovies = data.movies;
     renderSimilarMovies();
     showMessage(`Showing movies similar to ${title}.`);
+    showToast("Similar movies ready", title);
   } catch (error) {
     showApiError(error);
   }
@@ -1252,6 +1313,7 @@ async function importTmdbMovie(tmdbId) {
       "No movies match those filters yet.",
     );
     showMessage("Imported movie into CineWatch.");
+    showToast("Import complete", `${data.movie.title} is now in your library.`);
     await renderApp(searchInput.value.trim());
   } catch (error) {
     showApiError(error);
@@ -1260,8 +1322,27 @@ async function importTmdbMovie(tmdbId) {
   }
 }
 
-async function deleteStoredMovie(movieId, title) {
-  const shouldDelete = window.confirm(`Delete "${title}" from CineWatch? This also removes its ratings and watchlist entries.`);
+async function requestImportMovie(movie) {
+  const confirmed = await askChoice({
+    title: `Import ${movie.title}?`,
+    copy: `${movie.releaseYear ? `${movie.releaseYear} | ` : ""}${movie.genres?.slice(0, 3).join(", ") || "TMDB movie"} will be added to your CineWatch library.`,
+    confirmText: "Import Movie",
+    kicker: "Poster Universe",
+  });
+
+  if (confirmed) {
+    await importTmdbMovie(movie.tmdbId);
+  }
+}
+
+async function requestDeleteStoredMovie(movieId, title) {
+  const shouldDelete = await askChoice({
+    title: `Delete ${title}?`,
+    copy: "This removes the movie from CineWatch, including its ratings and watchlist entries.",
+    confirmText: "Delete Movie",
+    kicker: "Careful",
+    danger: true,
+  });
 
   if (!shouldDelete) return;
 
@@ -1273,6 +1354,7 @@ async function deleteStoredMovie(movieId, title) {
     await renderApp(searchInput.value.trim());
     switchView("browse");
     showMessage(`Deleted ${title}.`);
+    showToast("Movie deleted", title, "danger");
   } catch (error) {
     showApiError(error);
   } finally {
@@ -1300,6 +1382,7 @@ movieForm.addEventListener("submit", async (event) => {
 
     movieForm.reset();
     showMessage("Movie added.");
+    showToast("Movie added", formData.get("title"));
     await renderApp(searchInput.value.trim());
   } catch (error) {
     showApiError(error);
@@ -1324,6 +1407,7 @@ tmdbForm.addEventListener("submit", async (event) => {
     saveSearch(query);
     renderTmdbResults();
     showMessage(`Found ${state.tmdbResults.length} TMDB results.`);
+    showToast("Poster search ready", `${state.tmdbResults.length} results found.`);
   } catch (error) {
     showApiError(error);
   } finally {
@@ -1388,6 +1472,13 @@ authClose.addEventListener("click", () => authDialog.close());
 authLoginTab.addEventListener("click", () => setAuthMode("login"));
 authRegisterTab.addEventListener("click", () => setAuthMode("register"));
 
+choiceCancel.addEventListener("click", () => resolveChoice(false));
+choiceConfirm.addEventListener("click", () => resolveChoice(true));
+choiceDialog.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  resolveChoice(false);
+});
+
 demoUserButton.addEventListener("click", async () => {
   try {
     setLoading("auth", true, "Loading demo profile...");
@@ -1395,6 +1486,7 @@ demoUserButton.addEventListener("click", async () => {
     authDialog.close();
     await renderApp(searchInput.value.trim());
     showMessage("Demo profile loaded.");
+    showToast("Demo profile loaded", "You are using the shared demo account.");
   } catch (error) {
     showApiError(error);
   } finally {
@@ -1411,6 +1503,7 @@ authLogout.addEventListener("click", async () => {
   await useDemoUser({ persist: true });
   await renderApp(searchInput.value.trim());
   showMessage("Logged out. Demo profile loaded.");
+  showToast("Logged out", "Demo profile loaded.");
 });
 
 authForm.addEventListener("submit", async (event) => {
@@ -1427,6 +1520,7 @@ authForm.addEventListener("submit", async (event) => {
     authDialog.close();
     await renderApp(searchInput.value.trim());
     showMessage(`Signed in as ${data.user.name}.`);
+    showToast("Signed in", data.user.name);
   } catch (error) {
     showApiError(error);
   } finally {
