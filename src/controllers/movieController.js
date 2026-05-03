@@ -496,6 +496,30 @@ async function getMovie(req, res) {
   res.json({ movie: attachStats([movie], statsByMovieId)[0] });
 }
 
+async function deleteMovie(req, res) {
+  const movie = await Movie.findById(req.params.movieId);
+
+  if (!movie) {
+    throw createHttpError(404, "movie not found");
+  }
+
+  const [ratingResult, watchlistResult] = await Promise.all([
+    Rating.deleteMany({ movie: movie._id }),
+    Watchlist.deleteMany({ movie: movie._id }),
+  ]);
+
+  await Movie.deleteOne({ _id: movie._id });
+
+  res.json({
+    deletedMovie: {
+      id: movie.id,
+      title: movie.title,
+    },
+    deletedRatings: ratingResult.deletedCount,
+    deletedWatchlist: watchlistResult.deletedCount,
+  });
+}
+
 async function getMovieStats(req, res) {
   const movie = await Movie.findById(req.params.movieId).select("_id");
 
@@ -737,6 +761,7 @@ async function getRandomMovie(req, res) {
 
 module.exports = {
   createMovie,
+  deleteMovie,
   getAiRecommendations,
   getDiscoveryRecommendations,
   getMovie,

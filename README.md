@@ -100,6 +100,7 @@ Movies:
 - `POST /api/movies/tmdb/:tmdbId/import`
 - `POST /api/movies`
 - `GET /api/movies/:movieId`
+- `DELETE /api/movies/:movieId`
 - `GET /api/movies/:movieId/similar`
 - `GET /api/movies/:movieId/stats`
 

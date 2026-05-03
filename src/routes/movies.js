@@ -3,6 +3,7 @@
 const express = require("express");
 const {
   createMovie,
+  deleteMovie,
   getAiRecommendations,
   getDiscoveryRecommendations,
   getMovie,
@@ -31,6 +32,7 @@ router.post("/tmdb/:tmdbId/import", asyncHandler(importTmdbMovie));
 router.get("/world", asyncHandler(getWorldRecommendations));
 router.get("/world/random", asyncHandler(getWorldRandomMovie));
 router.get("/:movieId", asyncHandler(getMovie));
+router.delete("/:movieId", asyncHandler(deleteMovie));
 router.get("/:movieId/similar", asyncHandler(getSimilarMovies));
 router.get("/:movieId/stats", asyncHandler(getMovieStats));
 
