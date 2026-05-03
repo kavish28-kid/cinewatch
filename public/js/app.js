@@ -16,6 +16,9 @@ const authRegisterTab = document.querySelector("#auth-register-tab");
 const authSubmit = document.querySelector("#auth-submit");
 const authTitle = document.querySelector("#auth-title");
 const clearHistoryButton = document.querySelector("#clear-history");
+const cinebotForm = document.querySelector("#cinebot-form");
+const cinebotPrompt = document.querySelector("#cinebot-prompt");
+const cinebotThread = document.querySelector("#cinebot-thread");
 const choiceCancel = document.querySelector("#choice-cancel");
 const choiceConfirm = document.querySelector("#choice-confirm");
 const choiceCopy = document.querySelector("#choice-copy");
@@ -50,6 +53,8 @@ const highestRatedInsight = document.querySelector("#highest-rated-insight");
 const nextPickInsight = document.querySelector("#next-pick-insight");
 const recommendationsList = document.querySelector("#recommendations");
 const randomButton = document.querySelector("#random-button");
+const quizForm = document.querySelector("#quiz-form");
+const quizResultsList = document.querySelector("#quiz-results");
 const senseForm = document.querySelector("#sense-form");
 const senseResultsList = document.querySelector("#sense-results");
 const similarMoviesList = document.querySelector("#similar-movies");
@@ -71,6 +76,7 @@ const views = document.querySelectorAll(".app-view");
 const state = {
   movies: [],
   recommendations: [],
+  quizResults: [],
   ratingsByMovieId: new Map(),
   similarMovies: [],
   senseResults: [],
@@ -430,6 +436,53 @@ function renderHomeCollections() {
   renderCollection(hollywoodPicksList, state.homeCollections.hollywood, "Hollywood picks are loading.");
 }
 
+function createMiniResultCard(movie) {
+  const item = document.createElement("li");
+  item.className = "mini-movie-card";
+
+  const details = document.createElement("div");
+  details.className = "mini-movie-copy";
+
+  const title = document.createElement("strong");
+  title.textContent = movie.title;
+
+  const meta = document.createElement("span");
+  meta.textContent = movieSubtitle(movie) || "World-ranked pick";
+
+  details.append(title, meta);
+
+  if (movie.recommendationReason) {
+    const reason = document.createElement("p");
+    reason.textContent = movie.recommendationReason;
+    details.appendChild(reason);
+  }
+
+  const importButton = document.createElement("button");
+  importButton.type = "button";
+  importButton.textContent = "Import";
+  importButton.disabled = !movie.tmdbId;
+  importButton.addEventListener("click", () => requestImportMovie(movie));
+
+  item.append(createPoster(movie, "mini-poster"), details, importButton);
+  return item;
+}
+
+function renderMiniResults(listElement, movies, emptyText) {
+  listElement.innerHTML = "";
+
+  if (movies.length === 0) {
+    const item = document.createElement("li");
+    item.className = "empty-state";
+    item.textContent = emptyText;
+    listElement.appendChild(item);
+    return;
+  }
+
+  for (const movie of movies) {
+    listElement.appendChild(createMiniResultCard(movie));
+  }
+}
+
 function renderMovieCards(listElement, movies, emptyText, { compactActions = false } = {}) {
   listElement.innerHTML = "";
 
@@ -659,7 +712,13 @@ function renderModalMovie(movie, similarMovies = []) {
     movieModal.close();
   });
 
-  actions.append(watchlistButton, ratingSelect, rateButton);
+  const trailerButton = document.createElement("button");
+  trailerButton.type = "button";
+  trailerButton.className = "secondary";
+  trailerButton.textContent = "Trailer";
+  trailerButton.addEventListener("click", () => openMovieTrailer(movieId, movie.trailerUrl));
+
+  actions.append(watchlistButton, trailerButton, ratingSelect, rateButton);
 
   const similarSection = document.createElement("section");
   similarSection.className = "modal-similar";
@@ -772,13 +831,19 @@ function renderDetailsPage(movie, similarMovies = []) {
   watchlistButton.textContent = watchlistItem ? "Remove from Watchlist" : "Add to Watchlist";
   watchlistButton.addEventListener("click", () => toggleWatchlist(movieId, Boolean(watchlistItem)));
 
+  const trailerButton = document.createElement("button");
+  trailerButton.type = "button";
+  trailerButton.className = "secondary";
+  trailerButton.textContent = "Trailer";
+  trailerButton.addEventListener("click", () => openMovieTrailer(movieId, movie.trailerUrl));
+
   const deleteButton = document.createElement("button");
   deleteButton.type = "button";
   deleteButton.className = "secondary danger";
   deleteButton.textContent = "Delete Movie";
   deleteButton.addEventListener("click", () => requestDeleteStoredMovie(movieId, movie.title));
 
-  actions.append(watchlistButton, ratingSelect, saveReviewButton, deleteButton);
+  actions.append(watchlistButton, trailerButton, ratingSelect, saveReviewButton, deleteButton);
 
   const similarSection = document.createElement("div");
   similarSection.className = "details-similar";
@@ -997,6 +1062,17 @@ function renderSenseLoading() {
   }
 }
 
+function renderMiniLoading(listElement, count = 4) {
+  listElement.innerHTML = "";
+
+  for (let index = 0; index < count; index += 1) {
+    const item = document.createElement("li");
+    item.className = "mini-movie-card skeleton-card";
+    item.innerHTML = "<div class=\"poster mini-poster skeleton-box\"></div><div class=\"mini-movie-copy\"><span class=\"skeleton-line wide\"></span><span class=\"skeleton-line\"></span><span class=\"skeleton-line short\"></span></div><span class=\"skeleton-button\"></span>";
+    listElement.appendChild(item);
+  }
+}
+
 function renderSimilarMovies() {
   renderCompactMovieList(
     similarMoviesList,
@@ -1162,6 +1238,105 @@ function readSenseFilters() {
   };
 }
 
+function languageFromText(text = "") {
+  const normalized = text.toLowerCase();
+
+  if (normalized.includes("hindi") || normalized.includes("bollywood")) return "hi";
+  if (normalized.includes("korean")) return "ko";
+  if (normalized.includes("japanese") || normalized.includes("anime")) return "ja";
+  if (normalized.includes("english") || normalized.includes("hollywood")) return "en";
+
+  return undefined;
+}
+
+function cinebotFiltersFromPrompt(prompt) {
+  const normalized = prompt.toLowerCase();
+  const filters = {
+    limit: 5,
+    minImdbRating: normalized.includes("perfect") || normalized.includes("best") ? 8 : 7,
+    prompt,
+    sort: normalized.includes("trending") || normalized.includes("popular") ? "popular" : "top",
+  };
+  const language = languageFromText(prompt);
+
+  if (language) filters.language = language;
+  if (normalized.includes("short") || normalized.includes("quick")) filters.maxRuntime = 120;
+  if (normalized.includes("long") || normalized.includes("epic")) filters.minRuntime = 140;
+
+  return filters;
+}
+
+function appendCinebotMessage(role, text, movies = []) {
+  const item = document.createElement("li");
+  item.className = `chat-message ${role}`;
+
+  const speaker = document.createElement("strong");
+  speaker.textContent = role === "user" ? "You" : "CineBot";
+
+  const copy = document.createElement("span");
+  copy.textContent = text;
+
+  item.append(speaker, copy);
+
+  if (movies.length > 0) {
+    const results = document.createElement("ul");
+    results.className = "chat-results";
+    renderMiniResults(results, movies, "No picks found.");
+    item.appendChild(results);
+  }
+
+  cinebotThread.appendChild(item);
+
+  while (cinebotThread.children.length > 8) {
+    cinebotThread.removeChild(cinebotThread.firstElementChild);
+  }
+
+  cinebotThread.scrollTop = cinebotThread.scrollHeight;
+  return item;
+}
+
+function readQuizFilters() {
+  const formData = new FormData(quizForm);
+  const company = formData.get("company");
+  const energy = formData.get("energy");
+  const language = formData.get("language");
+  const runtime = formData.get("runtime");
+  const energyMap = {
+    emotional: { genre: "Drama", mood: "emotional", words: "emotional drama" },
+    horror: { genre: "Horror", mood: "intense", words: "high rated horror thriller" },
+    intense: { genre: "Action", mood: "intense", words: "intense action thriller" },
+    light: { genre: "Comedy", mood: "fun", words: "light fun comedy" },
+    "mind-bending": { genre: "Sci-Fi", mood: "mind-bending", words: "mind-bending sci-fi mystery" },
+  };
+  const base = energyMap[energy] || energyMap["mind-bending"];
+  const filters = {
+    genre: base.genre,
+    limit: 6,
+    minImdbRating: 7.2,
+    mood: base.mood,
+    prompt: `${base.words} for ${company}`,
+    sort: "top",
+  };
+
+  if (company === "family") {
+    filters.genre = "Family";
+    filters.mood = "fun";
+    filters.prompt = `family friendly ${base.words}`;
+  }
+
+  if (company === "date") {
+    filters.genre = energy === "horror" ? "Horror" : "Romance";
+    filters.mood = energy === "horror" ? "intense" : "romantic";
+    filters.prompt = `date night ${base.words}`;
+  }
+
+  if (language && language !== "any") filters.language = language;
+  if (runtime === "short") filters.maxRuntime = 120;
+  if (runtime === "long") filters.minRuntime = 140;
+
+  return filters;
+}
+
 async function runCineSense() {
   try {
     setLoading("cinesense", true, "Finding world-ranked recommendations...");
@@ -1183,6 +1358,61 @@ async function runCineSense() {
     showApiError(error);
   } finally {
     setLoading("cinesense", false);
+  }
+}
+
+async function runCineBot(event) {
+  event.preventDefault();
+
+  const prompt = cinebotPrompt.value.trim();
+
+  if (!prompt) {
+    showMessage("Ask CineBot for a movie mood first.");
+    showToast("CineBot needs a prompt", "Type a vibe like horror above 8 or short comedy.");
+    return;
+  }
+
+  appendCinebotMessage("user", prompt);
+  cinebotPrompt.value = "";
+  const pendingMessage = appendCinebotMessage("bot", "Scanning the world catalog...");
+
+  try {
+    setLoading("cinebot", true, "CineBot is reading your mood...");
+    const data = await window.cineWatchApi.getWorldRecommendations(cinebotFiltersFromPrompt(prompt));
+    pendingMessage.remove();
+    appendCinebotMessage(
+      "bot",
+      data.movies.length > 0
+        ? `I found ${data.movies.length} world-ranked matches. Import the one that feels right.`
+        : "No clean match came back. Try lowering the rating or changing the genre.",
+      data.movies,
+    );
+    saveSearch(prompt);
+    showMessage(`CineBot found ${data.movies.length} picks.`);
+    showToast("CineBot answered", `${data.movies.length} world-ranked picks found.`);
+  } catch (error) {
+    pendingMessage.remove();
+    showApiError(error);
+  } finally {
+    setLoading("cinebot", false);
+  }
+}
+
+async function runMoodQuiz(event) {
+  event.preventDefault();
+
+  try {
+    setLoading("mood-quiz", true, "Locking mood and finding movies...");
+    renderMiniLoading(quizResultsList, 4);
+    const data = await window.cineWatchApi.getWorldRecommendations(readQuizFilters());
+    state.quizResults = data.movies;
+    renderMiniResults(quizResultsList, state.quizResults, "No mood-lock picks found.");
+    showMessage(`Mood Lock found ${state.quizResults.length} picks.`);
+    showToast("Mood Lock ready", `${state.quizResults.length} picks for the room.`);
+  } catch (error) {
+    showApiError(error);
+  } finally {
+    setLoading("mood-quiz", false);
   }
 }
 
@@ -1278,6 +1508,42 @@ async function showSimilarMovies(movieId, title) {
     showToast("Similar movies ready", title);
   } catch (error) {
     showApiError(error);
+  }
+}
+
+async function openMovieTrailer(movieId, knownTrailerUrl = "") {
+  if (knownTrailerUrl) {
+    window.open(knownTrailerUrl, "_blank", "noopener,noreferrer");
+    showToast("Trailer opened", "YouTube trailer is opening.");
+    return;
+  }
+
+  const trailerWindow = window.open("", "_blank", "noopener,noreferrer");
+
+  try {
+    setLoading(`trailer-${movieId}`, true, "Finding trailer...");
+    const data = await window.cineWatchApi.getMovieTrailer(movieId);
+
+    if (!data.trailerUrl) {
+      if (trailerWindow) trailerWindow.close();
+      showToast("Trailer unavailable", "TMDB did not return a trailer for this movie.");
+      showMessage("Trailer unavailable for this movie.");
+      return;
+    }
+
+    if (trailerWindow) {
+      trailerWindow.location.href = data.trailerUrl;
+    } else {
+      window.open(data.trailerUrl, "_blank", "noopener,noreferrer");
+    }
+
+    showMessage("Trailer opened.");
+    showToast("Trailer opened", "YouTube trailer is opening.");
+  } catch (error) {
+    if (trailerWindow) trailerWindow.close();
+    showApiError(error);
+  } finally {
+    setLoading(`trailer-${movieId}`, false);
   }
 }
 
@@ -1455,6 +1721,8 @@ senseForm.addEventListener("submit", async (event) => {
 });
 
 randomButton.addEventListener("click", runRandomPicker);
+cinebotForm.addEventListener("submit", runCineBot);
+quizForm.addEventListener("submit", runMoodQuiz);
 
 clearHistoryButton.addEventListener("click", () => {
   localStorage.removeItem(historyKey);

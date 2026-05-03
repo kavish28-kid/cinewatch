@@ -328,7 +328,9 @@ function worldFiltersFromQuery(query = {}) {
     genres: genre ? [genre] : promptFilters.genres,
     language: selectedValue(query.language),
     limit: clampLimit(query.limit, 8),
+    maxRuntime: query.maxRuntime ? Number(query.maxRuntime) : undefined,
     minImdbRating,
+    minRuntime: query.minRuntime ? Number(query.minRuntime) : undefined,
     mood,
     moods: mood ? [mood] : promptFilters.moods,
     prompt: query.prompt || "",
@@ -406,6 +408,7 @@ async function createMovie(req, res) {
     cast: req.body.cast,
     runtimeMinutes: req.body.runtimeMinutes,
     spokenLanguage: req.body.spokenLanguage,
+    trailerUrl: req.body.trailerUrl,
     imdbRating: req.body.imdbRating,
     genres: req.body.genres,
     moodTags: req.body.moodTags,
@@ -431,6 +434,7 @@ async function createMovie(req, res) {
           releaseYear: movieData.releaseYear || tmdbMovie.releaseYear,
           source: "tmdb",
           spokenLanguage: movieData.spokenLanguage || tmdbMovie.spokenLanguage,
+          trailerUrl: movieData.trailerUrl || tmdbMovie.trailerUrl,
         };
       }
     } catch (error) {
@@ -451,6 +455,7 @@ async function createMovie(req, res) {
     cast: movieData.cast,
     runtimeMinutes: movieData.runtimeMinutes,
     spokenLanguage: movieData.spokenLanguage,
+    trailerUrl: movieData.trailerUrl,
     imdbRating: movieData.imdbRating,
     genres: movieData.genres,
     moodTags: movieData.moodTags,
@@ -530,6 +535,35 @@ async function getMovieStats(req, res) {
   const statsByMovieId = await getStatsForMovieIds([movie._id]);
 
   res.json({ stats: statsByMovieId.get(String(movie._id)) });
+}
+
+async function getMovieTrailer(req, res) {
+  const movie = await Movie.findById(req.params.movieId);
+
+  if (!movie) {
+    throw createHttpError(404, "movie not found");
+  }
+
+  if (movie.trailerUrl) {
+    return res.json({ trailerUrl: movie.trailerUrl });
+  }
+
+  const tmdbId = movie.externalId?.startsWith("tmdb:")
+    ? movie.externalId.split(":")[1]
+    : "";
+
+  if (!tmdbId) {
+    return res.json({ trailerUrl: "" });
+  }
+
+  const trailerUrl = await tmdbService.getMovieTrailer(tmdbId);
+
+  if (trailerUrl) {
+    movie.trailerUrl = trailerUrl;
+    await movie.save();
+  }
+
+  return res.json({ trailerUrl });
 }
 
 async function getSimilarMovies(req, res) {
@@ -766,6 +800,7 @@ module.exports = {
   getDiscoveryRecommendations,
   getMovie,
   getMovieStats,
+  getMovieTrailer,
   getMovies,
   getRandomMovie,
   getRecommendations,

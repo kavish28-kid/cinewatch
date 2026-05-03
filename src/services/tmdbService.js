@@ -53,6 +53,14 @@ function posterUrl(path) {
   return path ? `${imageBaseUrl}${path}` : "";
 }
 
+function trailerUrlFromVideos(videos = []) {
+  const trailer = videos.find((video) => video.site === "YouTube" && video.type === "Trailer")
+    || videos.find((video) => video.site === "YouTube" && video.type === "Teaser")
+    || videos.find((video) => video.site === "YouTube");
+
+  return trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : "";
+}
+
 function releaseYear(releaseDate) {
   return releaseDate ? Number(releaseDate.slice(0, 4)) : undefined;
 }
@@ -193,6 +201,7 @@ function normalizeDetailedMovie(movie) {
     source: "tmdb",
     spokenLanguage,
     title: movie.title || movie.original_title,
+    trailerUrl: trailerUrlFromVideos(movie.videos?.results || []),
   };
 }
 
@@ -225,6 +234,8 @@ async function discoverTopRatedMovies(filters = {}) {
     sort_by: sortBy,
     "vote_average.gte": Number.isFinite(minRating) ? String(Math.min(minRating, 10)) : "7",
     "vote_count.gte": filters.sort === "popular" ? "250" : "1000",
+    "with_runtime.gte": filters.minRuntime ? String(filters.minRuntime) : undefined,
+    "with_runtime.lte": filters.maxRuntime ? String(filters.maxRuntime) : undefined,
     with_original_language: filters.language || undefined,
     with_genres: genreIds.length > 0 ? genreIds.join("|") : undefined,
   });
@@ -254,16 +265,29 @@ async function getMovieDetails(tmdbId) {
   }
 
   const data = await tmdbRequest(`/movie/${tmdbId}`, {
-    append_to_response: "credits",
+    append_to_response: "credits,videos",
     language: "en-US",
   });
 
   return normalizeDetailedMovie(data);
 }
 
+async function getMovieTrailer(tmdbId) {
+  if (!tmdbId) {
+    throw createHttpError(400, "tmdbId is required");
+  }
+
+  const data = await tmdbRequest(`/movie/${tmdbId}/videos`, {
+    language: "en-US",
+  });
+
+  return trailerUrlFromVideos(data.results || []);
+}
+
 module.exports = {
   discoverTopRatedMovies,
   getMovieDetails,
+  getMovieTrailer,
   getRandomTopRatedMovie,
   searchMovies,
 };

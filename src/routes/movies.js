@@ -8,6 +8,7 @@ const {
   getDiscoveryRecommendations,
   getMovie,
   getMovieStats,
+  getMovieTrailer,
   getMovies,
   getRandomMovie,
   getRecommendations,
@@ -31,6 +32,7 @@ router.get("/tmdb/search", asyncHandler(searchTmdbMovies));
 router.post("/tmdb/:tmdbId/import", asyncHandler(importTmdbMovie));
 router.get("/world", asyncHandler(getWorldRecommendations));
 router.get("/world/random", asyncHandler(getWorldRandomMovie));
+router.get("/:movieId/trailer", asyncHandler(getMovieTrailer));
 router.get("/:movieId", asyncHandler(getMovie));
 router.delete("/:movieId", asyncHandler(deleteMovie));
 router.get("/:movieId/similar", asyncHandler(getSimilarMovies));

@@ -81,7 +81,7 @@
             <span class="eyebrow" id="hero-kicker">CineWatch Premiere</span>
             <h2 id="hero-title">Find your next big-screen obsession.</h2>
             <p id="hero-overview">Search real posters, build your watchlist, and let CineSense choose the movie when nobody can decide.</p>
-            <p>Search your library, save the good ones, and let CineSense pick when your brain says “anything is fine.”</p>
+            <p>Search your library, save the good ones, and let CineSense pick when your brain says anything is fine.</p>
             <div class="hero-meta" id="hero-meta"></div>
             <div class="format-pills" aria-label="Cinema formats">
               <span>Premium</span>
@@ -236,9 +236,14 @@
               <option value="any">Any category</option>
               <option value="Action">Action</option>
               <option value="Adventure">Adventure</option>
+              <option value="Animation">Animation</option>
               <option value="Comedy">Comedy</option>
               <option value="Crime">Crime</option>
+              <option value="Documentary">Documentary</option>
               <option value="Drama">Drama</option>
+              <option value="Family">Family</option>
+              <option value="Fantasy">Fantasy</option>
+              <option value="Horror">Horror</option>
               <option value="Music">Music</option>
               <option value="Romance">Romance</option>
               <option value="Sci-Fi">Sci-Fi</option>
@@ -259,6 +264,77 @@
             <button type="submit">Recommend</button>
             <button id="random-button" class="secondary" type="button">Random Pick</button>
           </form>
+        </section>
+
+        <section class="god-tools" aria-label="Advanced recommendation tools">
+          <article class="cinebot-panel">
+            <div class="section-heading compact-heading">
+              <div>
+                <span class="eyebrow">CineBot</span>
+                <h2>Ask like a real person.</h2>
+              </div>
+            </div>
+            <ul id="cinebot-thread" class="chat-thread" aria-live="polite">
+              <li class="chat-message bot">
+                <strong>CineBot</strong>
+                <span>Tell me a vibe: best horror above 8, short comedy for friends, emotional Hindi drama, or anything strange for midnight.</span>
+              </li>
+            </ul>
+            <form id="cinebot-form" class="cinebot-form">
+              <input id="cinebot-prompt" name="prompt" placeholder="Ask CineBot for a movie mood">
+              <button type="submit">Ask</button>
+            </form>
+          </article>
+
+          <article class="mood-quiz-panel">
+            <div class="section-heading compact-heading">
+              <div>
+                <span class="eyebrow">Mood Lock</span>
+                <h2>Choose the room. Get the movie.</h2>
+              </div>
+            </div>
+            <form id="quiz-form" class="quiz-form">
+              <label>
+                Crowd
+                <select id="quiz-company" name="company">
+                  <option value="solo">Solo</option>
+                  <option value="friends">Friends</option>
+                  <option value="family">Family</option>
+                  <option value="date">Date night</option>
+                </select>
+              </label>
+              <label>
+                Energy
+                <select id="quiz-energy" name="energy">
+                  <option value="mind-bending">Mind-bending</option>
+                  <option value="intense">Intense</option>
+                  <option value="horror">Horror</option>
+                  <option value="light">Light</option>
+                  <option value="emotional">Emotional</option>
+                </select>
+              </label>
+              <label>
+                Language
+                <select id="quiz-language" name="language">
+                  <option value="any">Any</option>
+                  <option value="en">English</option>
+                  <option value="hi">Hindi</option>
+                  <option value="ko">Korean</option>
+                  <option value="ja">Japanese</option>
+                </select>
+              </label>
+              <label>
+                Time
+                <select id="quiz-runtime" name="runtime">
+                  <option value="any">Any length</option>
+                  <option value="short">Under 2 hours</option>
+                  <option value="long">Epic length</option>
+                </select>
+              </label>
+              <button type="submit">Lock Mood</button>
+            </form>
+            <ul id="quiz-results" class="movie-grid mini-results"></ul>
+          </article>
         </section>
 
         <section>

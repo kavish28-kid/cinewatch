@@ -28,6 +28,11 @@ const movieSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    trailerUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     releaseYear: {
       type: Number,
       min: 1888,

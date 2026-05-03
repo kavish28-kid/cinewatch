@@ -33,6 +33,10 @@ function getMovie(movieId) {
   return apiRequest(`/movies/${movieId}`);
 }
 
+function getMovieTrailer(movieId) {
+  return apiRequest(`/movies/${movieId}/trailer`);
+}
+
 function deleteMovie(movieId) {
   return apiRequest(`/movies/${movieId}`, {
     method: "DELETE",
@@ -182,6 +186,7 @@ window.cineWatchApi = {
   getDemoUser,
   getDiscoveryRecommendations,
   getMovie,
+  getMovieTrailer,
   getMovies,
   getRecommendations,
   getRandomMovie,
