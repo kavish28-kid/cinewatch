@@ -475,30 +475,47 @@ function renderLandingHero() {
 function renderHeroPosters() {
   heroPosters.innerHTML = "";
 
-  const featuredMovies = [...state.movies]
+  const featuredMovies = uniqueMovies([
+    ...state.recommendations,
+    ...state.homeCollections.trending,
+    ...state.homeCollections.topRated,
+    ...state.homeCollections.hindi,
+    ...state.homeCollections.hollywood,
+    ...state.homeCollections.tollywood,
+    ...state.homeCollections.korean,
+    ...state.homeCollections.hiddenWorld,
+    ...state.movies,
+  ])
+    .filter((movie) => posterUrlFor(movie))
     .sort((a, b) => (b.imdbRating || 0) - (a.imdbRating || 0))
-    .slice(0, 4);
+    .slice(0, 9);
 
   if (featuredMovies.length === 0) {
     const empty = document.createElement("p");
     empty.className = "empty-state";
-    empty.textContent = "Add movies to build your front page.";
+    empty.textContent = "Import movies to start the poster roll.";
     heroPosters.appendChild(empty);
     return;
   }
 
-  for (const movie of featuredMovies) {
+  const track = document.createElement("div");
+  track.className = "hero-reel-track";
+
+  for (const [index, movie] of [...featuredMovies, ...featuredMovies].entries()) {
     const button = document.createElement("button");
     button.className = "hero-poster-card";
     button.type = "button";
-    button.addEventListener("click", () => openMovieDetails(getId(movie)));
+    button.style.setProperty("--reel-index", index);
+    button.addEventListener("click", () => openTasteMovie(movie));
 
     const label = document.createElement("span");
-    label.textContent = `${movie.title} ${movie.imdbRating ? `| ${movie.imdbRating}/10` : ""}`;
+    label.textContent = `${movie.title}${movie.imdbRating ? ` | ${movie.imdbRating}/10` : ""}`;
 
     button.append(createPoster(movie), label);
-    heroPosters.appendChild(button);
+    track.appendChild(button);
   }
+
+  heroPosters.appendChild(track);
 }
 
 function uniqueMovies(movies) {
