@@ -101,6 +101,25 @@
           <div id="hero-posters" class="hero-posters" aria-label="Featured movies"></div>
         </section>
 
+        <section class="taste-orbit-section" aria-label="Live 3D CineTaste recommendations">
+          <div class="taste-orbit-copy">
+            <span class="eyebrow">Live 3D CineTaste</span>
+            <h2 id="taste-orbit-title">Poster Orbit</h2>
+            <p id="taste-orbit-copy">A live 3D wall of picks shaped by ratings, watchlist, industry, and hidden-gem signals.</p>
+            <div id="taste-mode-buttons" class="taste-mode-buttons">
+              <button class="active" type="button" data-taste-mode="safe">Safe Pick</button>
+              <button type="button" data-taste-mode="hidden">Hidden Gem</button>
+              <button type="button" data-taste-mode="industry">Industry Swap</button>
+              <button type="button" data-taste-mode="opposite">Opposite Mood</button>
+              <button type="button" data-taste-mode="surprise">Surprise Me</button>
+            </div>
+          </div>
+          <div class="taste-orbit-stage">
+            <canvas id="taste-orbit-canvas" aria-label="Animated 3D movie poster orbit"></canvas>
+            <div id="taste-orbit-fallback" class="taste-orbit-fallback"></div>
+          </div>
+        </section>
+
         <section class="home-collections" aria-label="Movie discovery rows">
           <article class="collection-row">
             <div class="section-heading compact-heading">
@@ -479,6 +498,7 @@
       </div>
     </dialog>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="./js/api.js"></script>
     <script src="./js/app.js"></script>
   </body>

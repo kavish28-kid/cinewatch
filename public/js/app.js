@@ -73,6 +73,11 @@ const hindiPicksList = document.querySelector("#hindi-picks");
 const hollywoodPicksList = document.querySelector("#hollywood-picks");
 const message = document.querySelector("#message");
 const searchInput = document.querySelector("#search");
+const tasteModeButtons = document.querySelector("#taste-mode-buttons");
+const tasteOrbitCanvas = document.querySelector("#taste-orbit-canvas");
+const tasteOrbitCopy = document.querySelector("#taste-orbit-copy");
+const tasteOrbitFallback = document.querySelector("#taste-orbit-fallback");
+const tasteOrbitTitle = document.querySelector("#taste-orbit-title");
 const topRatedWorldList = document.querySelector("#top-rated-world");
 const tollywoodPicksList = document.querySelector("#tollywood-picks");
 const trendingWorldList = document.querySelector("#trending-world");
@@ -82,6 +87,7 @@ const state = {
   movies: [],
   recommendations: [],
   quizResults: [],
+  tasteMode: "safe",
   ratingsByMovieId: new Map(),
   similarMovies: [],
   senseResults: [],
@@ -139,6 +145,42 @@ const fallbackPosterUrls = {
   interstellar: "https://upload.wikimedia.org/wikipedia/en/b/bc/Interstellar_film_poster.jpg",
   "la la land": "https://upload.wikimedia.org/wikipedia/en/a/ab/La_La_Land_%28film%29.png",
   "the dark knight": "https://upload.wikimedia.org/wikipedia/en/1/1c/The_Dark_Knight_%282008_film%29.jpg",
+};
+
+const tasteModeConfig = {
+  hidden: {
+    copy: "High-rated movies with less mainstream pull, built for finding something people usually miss.",
+    title: "Hidden Gem Orbit",
+  },
+  industry: {
+    copy: "Same movie hunger, different cinema language: Bollywood, Tollywood, Korean, Japanese, and world picks rotate together.",
+    title: "Industry Swap Orbit",
+  },
+  opposite: {
+    copy: "A deliberate mood shift: if your taste leans intense, CineWatch pushes toward lighter or emotional quality picks.",
+    title: "Opposite Mood Orbit",
+  },
+  safe: {
+    copy: "A confident orbit of top-rated and popular picks that should feel familiar, strong, and easy to watch.",
+    title: "Safe Pick Orbit",
+  },
+  surprise: {
+    copy: "A mixed orbit of popular, hidden, regional, and strange-but-good picks when you want CineWatch to choose.",
+    title: "Surprise Orbit",
+  },
+};
+
+const tasteOrbit = {
+  animationId: null,
+  camera: null,
+  cards: [],
+  group: null,
+  height: 0,
+  movies: [],
+  raycaster: null,
+  renderer: null,
+  scene: null,
+  width: 0,
 };
 
 function getId(record) {
@@ -426,6 +468,291 @@ function renderHeroPosters() {
 
     button.append(createPoster(movie), label);
     heroPosters.appendChild(button);
+  }
+}
+
+function uniqueMovies(movies) {
+  const seen = new Set();
+
+  return movies.filter((movie) => {
+    const key = movie.tmdbId ? `tmdb:${movie.tmdbId}` : getId(movie) || movie.externalId || movie.title;
+
+    if (!key || seen.has(key)) return false;
+
+    seen.add(key);
+    return true;
+  });
+}
+
+function shuffleMovies(movies) {
+  return [...movies]
+    .map((movie) => ({ movie, score: Math.random() }))
+    .sort((a, b) => a.score - b.score)
+    .map((item) => item.movie);
+}
+
+function allDiscoveryMovies() {
+  return uniqueMovies([
+    ...state.recommendations,
+    ...state.homeCollections.trending,
+    ...state.homeCollections.topRated,
+    ...state.homeCollections.hindi,
+    ...state.homeCollections.hollywood,
+    ...state.homeCollections.tollywood,
+    ...state.homeCollections.korean,
+    ...state.homeCollections.japan,
+    ...state.homeCollections.hiddenWorld,
+    ...state.movies,
+  ]).filter((movie) => posterUrlFor(movie));
+}
+
+function favoriteTasteGenres() {
+  const scores = new Map();
+
+  for (const rating of state.ratingsByMovieId.values()) {
+    for (const genre of rating.movie?.genres || []) {
+      scores.set(genre, (scores.get(genre) || 0) + rating.score);
+    }
+  }
+
+  for (const item of state.watchlistByMovieId.values()) {
+    for (const genre of item.movie?.genres || []) {
+      scores.set(genre, (scores.get(genre) || 0) + 4);
+    }
+  }
+
+  return [...scores.entries()].sort((a, b) => b[1] - a[1]).map(([genre]) => genre);
+}
+
+function tasteMoviesForMode(mode) {
+  const base = allDiscoveryMovies();
+  const sortedBase = [...base].sort((a, b) => (b.imdbRating || 0) - (a.imdbRating || 0));
+  const industryMix = uniqueMovies([
+    ...state.homeCollections.tollywood,
+    ...state.homeCollections.korean,
+    ...state.homeCollections.japan,
+    ...state.homeCollections.hindi,
+    ...state.homeCollections.hiddenWorld,
+  ]).filter((movie) => posterUrlFor(movie));
+
+  if (mode === "hidden") {
+    return uniqueMovies([...state.homeCollections.hiddenWorld, ...sortedBase]).slice(0, 10);
+  }
+
+  if (mode === "industry") {
+    return uniqueMovies([...industryMix, ...sortedBase]).slice(0, 10);
+  }
+
+  if (mode === "opposite") {
+    const favoriteGenres = favoriteTasteGenres();
+    const oppositeGenres = favoriteGenres.some((genre) => ["Action", "Horror", "Thriller", "Crime"].includes(genre))
+      ? ["Comedy", "Romance", "Drama", "Family"]
+      : ["Thriller", "Mystery", "Sci-Fi", "Action"];
+    const oppositeMovies = base.filter((movie) => (
+      movie.genres || []
+    ).some((genre) => oppositeGenres.includes(genre)));
+
+    return uniqueMovies([...oppositeMovies, ...state.homeCollections.hiddenWorld, ...sortedBase]).slice(0, 10);
+  }
+
+  if (mode === "surprise") {
+    return shuffleMovies(uniqueMovies([...industryMix, ...state.homeCollections.trending, ...sortedBase])).slice(0, 10);
+  }
+
+  return uniqueMovies([...state.recommendations, ...state.homeCollections.trending, ...state.homeCollections.topRated, ...sortedBase]).slice(0, 10);
+}
+
+function renderTasteFallback(movies) {
+  tasteOrbitFallback.innerHTML = "";
+
+  for (const movie of movies.slice(0, 5)) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "taste-orbit-chip";
+    button.addEventListener("click", () => openTasteMovie(movie));
+
+    const title = document.createElement("strong");
+    title.textContent = movie.title;
+
+    const meta = document.createElement("span");
+    meta.textContent = movieSubtitle(movie) || "CineTaste pick";
+
+    button.append(createPoster(movie, "taste-chip-poster"), title, meta);
+    tasteOrbitFallback.appendChild(button);
+  }
+}
+
+function makeFallbackTexture(movie) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 768;
+  const context = canvas.getContext("2d");
+  const gradient = context.createLinearGradient(0, 0, 512, 768);
+  gradient.addColorStop(0, "#172033");
+  gradient.addColorStop(1, "#05070b");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "rgba(255,255,255,0.16)";
+  context.fillRect(34, 34, 444, 700);
+  context.fillStyle = "#f8e3a9";
+  context.font = "700 54px Inter, Arial";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(initials(movie.title), 256, 350);
+  context.fillStyle = "#f4f7fb";
+  context.font = "700 30px Inter, Arial";
+  context.fillText((movie.genres?.[0] || "CineWatch").slice(0, 18), 256, 430);
+
+  return new THREE.CanvasTexture(canvas);
+}
+
+function disposeTasteOrbitCards() {
+  for (const card of tasteOrbit.cards) {
+    if (card.material.map) card.material.map.dispose();
+    card.material.dispose();
+    card.geometry.dispose();
+  }
+
+  tasteOrbit.cards = [];
+  if (tasteOrbit.group) tasteOrbit.group.clear();
+}
+
+function sizeTasteOrbit() {
+  if (!tasteOrbit.renderer || !tasteOrbitCanvas) return;
+
+  const rect = tasteOrbitCanvas.parentElement.getBoundingClientRect();
+  const width = Math.max(Math.floor(rect.width), 320);
+  const height = Math.max(Math.floor(rect.height), 260);
+
+  if (width === tasteOrbit.width && height === tasteOrbit.height) return;
+
+  tasteOrbit.width = width;
+  tasteOrbit.height = height;
+  tasteOrbit.renderer.setSize(width, height, false);
+  tasteOrbit.camera.aspect = width / height;
+  tasteOrbit.camera.updateProjectionMatrix();
+}
+
+function initTasteOrbit() {
+  if (!tasteOrbitCanvas || !window.THREE || tasteOrbit.renderer) return Boolean(tasteOrbit.renderer);
+
+  tasteOrbit.scene = new THREE.Scene();
+  tasteOrbit.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  tasteOrbit.camera.position.set(0, 0.3, 7.2);
+  tasteOrbit.group = new THREE.Group();
+  tasteOrbit.scene.add(tasteOrbit.group);
+  tasteOrbit.raycaster = new THREE.Raycaster();
+  tasteOrbit.renderer = new THREE.WebGLRenderer({
+    alpha: true,
+    antialias: true,
+    canvas: tasteOrbitCanvas,
+  });
+  tasteOrbit.renderer.setClearColor(0x000000, 0);
+  tasteOrbit.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
+
+  tasteOrbitCanvas.addEventListener("click", (event) => {
+    sizeTasteOrbit();
+    const rect = tasteOrbitCanvas.getBoundingClientRect();
+    const pointer = new THREE.Vector2(
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      -(((event.clientY - rect.top) / rect.height) * 2 - 1),
+    );
+    tasteOrbit.raycaster.setFromCamera(pointer, tasteOrbit.camera);
+    const [hit] = tasteOrbit.raycaster.intersectObjects(tasteOrbit.cards);
+
+    if (hit?.object?.userData?.movie) {
+      openTasteMovie(hit.object.userData.movie);
+    }
+  });
+
+  window.addEventListener("resize", sizeTasteOrbit);
+  sizeTasteOrbit();
+  return true;
+}
+
+function renderTasteOrbit3d(movies) {
+  if (!initTasteOrbit()) return;
+
+  disposeTasteOrbitCards();
+  const loader = new THREE.TextureLoader();
+  loader.setCrossOrigin("anonymous");
+  const count = Math.min(movies.length, window.innerWidth < 640 ? 6 : 10);
+  const radius = window.innerWidth < 640 ? 3.2 : 4.2;
+
+  for (const [index, movie] of movies.slice(0, count).entries()) {
+    const angle = (index / count) * Math.PI * 2;
+    const geometry = new THREE.PlaneGeometry(1.05, 1.58);
+    const texture = makeFallbackTexture(movie);
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      side: THREE.DoubleSide,
+      transparent: true,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(Math.sin(angle) * radius, Math.sin(index * 0.9) * 0.16, Math.cos(angle) * radius);
+    mesh.rotation.y = angle + Math.PI;
+    mesh.userData.movie = movie;
+    tasteOrbit.group.add(mesh);
+    tasteOrbit.cards.push(mesh);
+
+    const posterUrl = posterUrlFor(movie);
+    if (posterUrl) {
+      loader.load(posterUrl, (loadedTexture) => {
+        material.map.dispose();
+        material.map = loadedTexture;
+        material.needsUpdate = true;
+      });
+    }
+  }
+
+  if (!tasteOrbit.animationId) {
+    animateTasteOrbit();
+  }
+}
+
+function animateTasteOrbit() {
+  sizeTasteOrbit();
+  tasteOrbit.group.rotation.y += 0.004;
+
+  for (const [index, card] of tasteOrbit.cards.entries()) {
+    card.position.y += Math.sin(Date.now() * 0.001 + index) * 0.0007;
+  }
+
+  tasteOrbit.renderer.render(tasteOrbit.scene, tasteOrbit.camera);
+  tasteOrbit.animationId = window.requestAnimationFrame(animateTasteOrbit);
+}
+
+function openTasteMovie(movie) {
+  const movieId = getId(movie);
+
+  if (movieId) {
+    openMovieDetails(movieId);
+    return;
+  }
+
+  if (movie.tmdbId) {
+    requestImportMovie(movie);
+  }
+}
+
+function renderTasteOrbit(mode = state.tasteMode) {
+  if (!tasteOrbitTitle || !tasteOrbitFallback) return;
+
+  state.tasteMode = mode;
+  const config = tasteModeConfig[mode] || tasteModeConfig.safe;
+  const movies = tasteMoviesForMode(mode);
+  tasteOrbitTitle.textContent = config.title;
+  tasteOrbitCopy.textContent = config.copy;
+  tasteOrbit.movies = movies;
+
+  for (const button of tasteModeButtons.querySelectorAll("button")) {
+    button.classList.toggle("active", button.dataset.tasteMode === mode);
+  }
+
+  renderTasteFallback(movies);
+
+  if (movies.length > 0) {
+    renderTasteOrbit3d(movies);
   }
 }
 
@@ -1340,6 +1667,7 @@ async function renderApp(search = "") {
     renderHero();
     renderHeroPosters();
     renderHomeCollections();
+    renderTasteOrbit(state.tasteMode);
     renderMovies();
     renderWatchlist();
     renderRecommendations();
@@ -1937,6 +2265,13 @@ senseForm.addEventListener("submit", async (event) => {
 randomButton.addEventListener("click", runRandomPicker);
 cinebotForm.addEventListener("submit", runCineBot);
 quizForm.addEventListener("submit", runMoodQuiz);
+tasteModeButtons.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-taste-mode]");
+
+  if (!button) return;
+
+  renderTasteOrbit(button.dataset.tasteMode);
+});
 industryButtons.addEventListener("click", async (event) => {
   const button = event.target.closest("button[data-industry]");
 
