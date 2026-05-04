@@ -2,6 +2,7 @@
 
 const express = require("express");
 const mongoose = require("mongoose");
+const path = require("path");
 const cors = require("./middleware/cors");
 const errorHandler = require("./middleware/errorHandler");
 const requireDatabase = require("./middleware/requireDatabase");
@@ -61,6 +62,14 @@ app.use(
 app.use("/api/watchlist", requireDatabase, watchlistRouter);
 app.use("/api/ratings", requireDatabase, ratingsRouter);
 app.use("/api/users", requireDatabase, usersRouter);
+
+app.use((req, res, next) => {
+  if (req.method === "GET" && req.accepts("html") && !req.path.startsWith("/api/")) {
+    return res.sendFile(path.join(__dirname, "..", "public", "index.html"));
+  }
+
+  return next();
+});
 
 app.use((req, res) => {
   res.status(404).json({ error: "route not found" });
