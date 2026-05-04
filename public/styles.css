@@ -4123,3 +4123,116 @@ button,
     width: 100%;
   }
 }
+
+/* Site-wide 3D cinema layer */
+#cineverse-canvas {
+  display: block;
+  height: 100vh;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: fixed;
+  transition: opacity 900ms ease;
+  width: 100vw;
+  z-index: 0;
+}
+
+body.cineverse-ready #cineverse-canvas {
+  opacity: 0.72;
+}
+
+body.cineverse-ready::before {
+  opacity: 0.34;
+}
+
+body.cineverse-ready .app-shell {
+  z-index: 2;
+}
+
+.browse-hero,
+.taste-orbit-section,
+.collection-row,
+.world-search-panel,
+.library-panel,
+.recommendation-rail,
+.sense-panel,
+.industry-lens,
+.cinebot-panel,
+.mood-quiz-panel,
+.dashboard-grid,
+.dashboard-split,
+.history-list {
+  position: relative;
+}
+
+.browse-hero,
+.taste-orbit-section,
+.collection-row,
+.world-search-panel,
+.library-panel,
+.recommendation-rail,
+.sense-panel,
+.industry-lens,
+.cinebot-panel,
+.mood-quiz-panel,
+.history-list,
+.metric-card,
+.insight-card {
+  background-blend-mode: screen, normal;
+}
+
+.movie-card,
+.tmdb-card,
+.collection-card,
+.mini-movie-card,
+.metric-card,
+.insight-card,
+.hero-poster-card {
+  transform-style: preserve-3d;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  will-change: transform;
+}
+
+.movie-card.is-tilting,
+.tmdb-card.is-tilting,
+.collection-card.is-tilting,
+.mini-movie-card.is-tilting,
+.metric-card.is-tilting,
+.insight-card.is-tilting,
+.hero-poster-card.is-tilting {
+  box-shadow: 0 28px 75px rgb(0 0 0 / 0.5), 0 0 30px rgb(140 199 255 / 0.08);
+  transform: perspective(900px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) translateY(-2px);
+}
+
+.movie-card.is-tilting .poster,
+.tmdb-card.is-tilting .poster,
+.collection-card.is-tilting .poster,
+.mini-movie-card.is-tilting .poster,
+.hero-poster-card.is-tilting .poster {
+  transform: translateZ(18px);
+}
+
+.poster {
+  transition: transform 180ms ease;
+}
+
+@media (max-width: 780px), (hover: none) {
+  body.cineverse-ready #cineverse-canvas {
+    opacity: 0.48;
+  }
+
+  .movie-card.is-tilting,
+  .tmdb-card.is-tilting,
+  .collection-card.is-tilting,
+  .mini-movie-card.is-tilting,
+  .metric-card.is-tilting,
+  .insight-card.is-tilting,
+  .hero-poster-card.is-tilting,
+  .movie-card.is-tilting .poster,
+  .tmdb-card.is-tilting .poster,
+  .collection-card.is-tilting .poster,
+  .mini-movie-card.is-tilting .poster,
+  .hero-poster-card.is-tilting .poster {
+    transform: none;
+  }
+}

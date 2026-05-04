@@ -25,6 +25,7 @@ const choiceCopy = document.querySelector("#choice-copy");
 const choiceDialog = document.querySelector("#choice-dialog");
 const choiceKicker = document.querySelector("#choice-kicker");
 const choiceTitle = document.querySelector("#choice-title");
+const cineverseCanvas = document.querySelector("#cineverse-canvas");
 const demoUserButton = document.querySelector("#demo-user-button");
 const detailsPageContent = document.querySelector("#details-page-content");
 const heroCinesenseButton = document.querySelector("#hero-cinesense");
@@ -182,6 +183,35 @@ const tasteOrbit = {
   scene: null,
   width: 0,
 };
+
+const cineverse = {
+  animationId: null,
+  beams: null,
+  camera: null,
+  height: 0,
+  posterGroup: null,
+  posters: [],
+  pointerX: 0,
+  pointerY: 0,
+  posterKeys: "",
+  renderer: null,
+  rings: [],
+  scene: null,
+  stars: null,
+  tunnel: null,
+  width: 0,
+};
+
+const tiltSelector = [
+  ".movie-card",
+  ".tmdb-card",
+  ".collection-card",
+  ".mini-movie-card",
+  ".metric-card",
+  ".insight-card",
+  ".hero-poster-card",
+].join(",");
+const tiltActiveSelector = tiltSelector.split(",").map((selector) => `${selector}.is-tilting`).join(",");
 
 function getId(record) {
   return record ? record.id || record._id : undefined;
@@ -753,6 +783,299 @@ function renderTasteOrbit(mode = state.tasteMode) {
 
   if (movies.length > 0) {
     renderTasteOrbit3d(movies);
+  }
+}
+
+function sizeCineverse() {
+  if (!cineverse.renderer || !cineverseCanvas) return;
+
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+
+  if (width === cineverse.width && height === cineverse.height) return;
+
+  cineverse.width = width;
+  cineverse.height = height;
+  cineverse.renderer.setSize(width, height, false);
+  cineverse.camera.aspect = width / height;
+  cineverse.camera.updateProjectionMatrix();
+}
+
+function createCineverseStars() {
+  const isMobile = window.innerWidth < 720;
+  const count = isMobile ? 220 : 420;
+  const positions = new Float32Array(count * 3);
+
+  for (let index = 0; index < count; index += 1) {
+    positions[index * 3] = (Math.random() - 0.5) * 24;
+    positions[index * 3 + 1] = (Math.random() - 0.5) * 14;
+    positions[index * 3 + 2] = -Math.random() * 34 + 8;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  const material = new THREE.PointsMaterial({
+    color: 0xeef6ff,
+    opacity: 0.62,
+    size: isMobile ? 0.025 : 0.032,
+    transparent: true,
+  });
+
+  return new THREE.Points(geometry, material);
+}
+
+function createCineverseTunnel() {
+  const tunnel = new THREE.Group();
+  const ringMaterial = new THREE.LineBasicMaterial({
+    color: 0xd8bb73,
+    opacity: 0.22,
+    transparent: true,
+  });
+  const railMaterial = new THREE.LineBasicMaterial({
+    color: 0x8cc7ff,
+    opacity: 0.16,
+    transparent: true,
+  });
+  const points = [];
+  const segments = 96;
+
+  for (let index = 0; index < segments; index += 1) {
+    const angle = (index / segments) * Math.PI * 2;
+    points.push(new THREE.Vector3(Math.cos(angle) * 5.3, Math.sin(angle) * 3.15, 0));
+  }
+
+  for (let index = 0; index < 18; index += 1) {
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const ring = new THREE.LineLoop(geometry, ringMaterial.clone());
+    ring.position.z = -24 + index * 1.9;
+    ring.rotation.z = index * 0.12;
+    tunnel.add(ring);
+    cineverse.rings.push(ring);
+  }
+
+  for (const [x, y] of [[-5.4, -2.9], [5.4, -2.9], [-5.4, 2.9], [5.4, 2.9]]) {
+    const railGeometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(x, y, 8),
+      new THREE.Vector3(x * 0.55, y * 0.55, -28),
+    ]);
+    const rail = new THREE.Line(railGeometry, railMaterial.clone());
+    tunnel.add(rail);
+  }
+
+  return tunnel;
+}
+
+function createCineverseBeams() {
+  const beams = new THREE.Group();
+  const colors = [0xd8bb73, 0x8cc7ff, 0xffffff];
+
+  for (let index = 0; index < colors.length; index += 1) {
+    const material = new THREE.MeshBasicMaterial({
+      blending: THREE.AdditiveBlending,
+      color: colors[index],
+      depthWrite: false,
+      opacity: index === 2 ? 0.04 : 0.07,
+      side: THREE.DoubleSide,
+      transparent: true,
+    });
+    const beam = new THREE.Mesh(new THREE.PlaneGeometry(10, 3.2), material);
+    beam.position.set((index - 1) * 2.6, index * 0.35 - 0.3, -4 - index * 1.8);
+    beam.rotation.z = (index - 1) * 0.24;
+    beam.rotation.y = (index - 1) * 0.18;
+    beams.add(beam);
+  }
+
+  return beams;
+}
+
+function initCineverse() {
+  if (!cineverseCanvas || !window.THREE || cineverse.renderer) return Boolean(cineverse.renderer);
+
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (reducedMotion) return false;
+
+  cineverse.scene = new THREE.Scene();
+  cineverse.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+  cineverse.camera.position.set(0, 0.15, 7.8);
+  cineverse.renderer = new THREE.WebGLRenderer({
+    alpha: true,
+    antialias: true,
+    canvas: cineverseCanvas,
+    powerPreference: "high-performance",
+  });
+  cineverse.renderer.setClearColor(0x000000, 0);
+  cineverse.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.45));
+
+  cineverse.stars = createCineverseStars();
+  cineverse.tunnel = createCineverseTunnel();
+  cineverse.beams = createCineverseBeams();
+  cineverse.posterGroup = new THREE.Group();
+
+  cineverse.scene.add(cineverse.stars, cineverse.tunnel, cineverse.beams, cineverse.posterGroup);
+  sizeCineverse();
+  window.addEventListener("resize", sizeCineverse);
+  document.body.classList.add("cineverse-ready");
+
+  if (!cineverse.animationId) animateCineverse();
+
+  return true;
+}
+
+function disposeCineversePosters() {
+  for (const poster of cineverse.posters) {
+    if (poster.material.map) poster.material.map.dispose();
+    poster.material.dispose();
+    poster.geometry.dispose();
+  }
+
+  cineverse.posters = [];
+  if (cineverse.posterGroup) cineverse.posterGroup.clear();
+}
+
+function seedCineverseMovies(movies) {
+  if (movies.length > 0) return movies;
+
+  return [
+    { genres: ["CineWatch"], title: "Poster Universe" },
+    { genres: ["CineSense"], title: "Mood Engine" },
+    { genres: ["Watchlist"], title: "Private Queue" },
+    { genres: ["World"], title: "Hidden Cinema" },
+    { genres: ["AI"], title: "Taste Signal" },
+  ];
+}
+
+function rebuildCineversePosters(movies) {
+  if (!initCineverse()) return;
+
+  const isMobile = window.innerWidth < 720;
+  const selectedMovies = seedCineverseMovies(movies).slice(0, isMobile ? 8 : 14);
+  const keys = selectedMovies.map((movie) => movie.tmdbId || getId(movie) || movie.title).join("|");
+
+  if (keys === cineverse.posterKeys) return;
+
+  cineverse.posterKeys = keys;
+  disposeCineversePosters();
+
+  const loader = new THREE.TextureLoader();
+  loader.setCrossOrigin("anonymous");
+
+  for (const [index, movie] of selectedMovies.entries()) {
+    const texture = makeFallbackTexture(movie);
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      side: THREE.DoubleSide,
+      transparent: true,
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.74, 1.1), material);
+    const side = index % 2 === 0 ? -1 : 1;
+    const lane = Math.floor(index / 2);
+    mesh.position.set(side * (3.35 + (lane % 3) * 0.28), -1.35 + (lane % 4) * 0.74, -2.3 - lane * 1.45);
+    mesh.rotation.y = side * -0.68;
+    mesh.rotation.z = side * 0.045;
+    mesh.userData.baseY = mesh.position.y;
+    cineverse.posterGroup.add(mesh);
+    cineverse.posters.push(mesh);
+
+    const posterUrl = posterUrlFor(movie);
+    if (posterUrl) {
+      loader.load(posterUrl, (loadedTexture) => {
+        material.map.dispose();
+        material.map = loadedTexture;
+        material.needsUpdate = true;
+      });
+    }
+  }
+}
+
+function renderCineverseBackdrop() {
+  const movies = uniqueMovies([
+    ...state.homeCollections.topRated,
+    ...state.homeCollections.trending,
+    ...state.recommendations,
+    ...state.homeCollections.hiddenWorld,
+    ...state.homeCollections.korean,
+    ...state.homeCollections.hindi,
+    ...state.movies,
+  ]).filter((movie) => posterUrlFor(movie));
+
+  rebuildCineversePosters(movies);
+}
+
+function animateCineverse() {
+  sizeCineverse();
+  const time = Date.now() * 0.001;
+  const scrollDrift = Math.min(window.scrollY / Math.max(window.innerHeight * 3, 1), 1);
+
+  cineverse.camera.position.x += (cineverse.pointerX * 0.45 - cineverse.camera.position.x) * 0.035;
+  cineverse.camera.position.y += (-cineverse.pointerY * 0.28 + 0.12 - cineverse.camera.position.y) * 0.035;
+  cineverse.camera.position.z = 7.8 - scrollDrift * 1.2;
+  cineverse.camera.lookAt(0, 0, -8);
+
+  if (cineverse.stars) {
+    cineverse.stars.rotation.y += 0.00045;
+    cineverse.stars.position.z = Math.sin(time * 0.18) * 0.25;
+  }
+
+  if (cineverse.tunnel) {
+    cineverse.tunnel.rotation.z += 0.0009;
+  }
+
+  for (const ring of cineverse.rings) {
+    ring.position.z += 0.028;
+    ring.material.opacity = 0.12 + Math.max(0, ring.position.z + 24) * 0.004;
+    if (ring.position.z > 8) ring.position.z = -26;
+  }
+
+  if (cineverse.beams) {
+    cineverse.beams.rotation.z = Math.sin(time * 0.22) * 0.045;
+  }
+
+  for (const [index, poster] of cineverse.posters.entries()) {
+    poster.position.y = poster.userData.baseY + Math.sin(time * 0.7 + index) * 0.08;
+    poster.position.z += 0.005;
+    if (poster.position.z > 1.2) poster.position.z = -10.5 - (index % 5);
+  }
+
+  cineverse.renderer.render(cineverse.scene, cineverse.camera);
+  cineverse.animationId = window.requestAnimationFrame(animateCineverse);
+}
+
+function updateCineversePointer(event) {
+  cineverse.pointerX = (event.clientX / window.innerWidth - 0.5) * 2;
+  cineverse.pointerY = (event.clientY / window.innerHeight - 0.5) * 2;
+}
+
+function closestTiltCard(target) {
+  return target instanceof Element ? target.closest(tiltSelector) : null;
+}
+
+function handleCardTilt(event) {
+  if (!window.matchMedia("(hover: hover)").matches || window.innerWidth < 780) return;
+
+  const card = closestTiltCard(event.target);
+
+  document.querySelectorAll(tiltActiveSelector).forEach((activeCard) => {
+    if (activeCard !== card) activeCard.classList.remove("is-tilting");
+  });
+
+  if (!card) return;
+
+  const rect = card.getBoundingClientRect();
+  const x = (event.clientX - rect.left) / rect.width - 0.5;
+  const y = (event.clientY - rect.top) / rect.height - 0.5;
+  card.style.setProperty("--tilt-x", `${(-y * 7).toFixed(2)}deg`);
+  card.style.setProperty("--tilt-y", `${(x * 7).toFixed(2)}deg`);
+  card.classList.add("is-tilting");
+}
+
+function clearCardTilt(event) {
+  const card = closestTiltCard(event.target);
+
+  if (card) {
+    card.classList.remove("is-tilting");
+    card.style.removeProperty("--tilt-x");
+    card.style.removeProperty("--tilt-y");
   }
 }
 
@@ -1668,6 +1991,7 @@ async function renderApp(search = "") {
     renderHeroPosters();
     renderHomeCollections();
     renderTasteOrbit(state.tasteMode);
+    renderCineverseBackdrop();
     renderMovies();
     renderWatchlist();
     renderRecommendations();
@@ -1997,6 +2321,8 @@ async function toggleWatchlist(movieId, isInWatchlist) {
     renderMovies();
     renderWatchlist();
     renderRecommendations();
+    renderTasteOrbit(state.tasteMode);
+    renderCineverseBackdrop();
     renderDashboard();
     if (state.activeDetailMovieId === movieId && document.querySelector("#details-view").classList.contains("active")) {
       await openMovieDetails(movieId);
@@ -2024,6 +2350,8 @@ async function saveRating(movieId, score, review = "") {
     renderMovies();
     renderWatchlist();
     renderRecommendations();
+    renderTasteOrbit(state.tasteMode);
+    renderCineverseBackdrop();
     renderDashboard();
     if (state.activeDetailMovieId === movieId && document.querySelector("#details-view").classList.contains("active")) {
       await openMovieDetails(movieId);
@@ -2244,6 +2572,11 @@ document.addEventListener("keydown", (event) => {
     setMenuOpen(false);
   }
 });
+document.addEventListener("pointermove", (event) => {
+  updateCineversePointer(event);
+  handleCardTilt(event);
+});
+document.addEventListener("pointerout", clearCardTilt);
 
 for (const button of menuLinks) {
   button.addEventListener("click", () => switchView(button.dataset.view));
