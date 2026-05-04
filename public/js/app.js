@@ -676,6 +676,7 @@ function initTasteOrbit() {
     alpha: true,
     antialias: true,
     canvas: tasteOrbitCanvas,
+    preserveDrawingBuffer: true,
   });
   tasteOrbit.renderer.setClearColor(0x000000, 0);
   tasteOrbit.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
@@ -903,6 +904,7 @@ function initCineverse() {
     antialias: true,
     canvas: cineverseCanvas,
     powerPreference: "high-performance",
+    preserveDrawingBuffer: true,
   });
   cineverse.renderer.setClearColor(0x000000, 0);
   cineverse.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.45));
@@ -1983,6 +1985,7 @@ async function loadHomeCollections() {
 async function renderApp(search = "") {
   try {
     renderLandingHero();
+    renderCineverseBackdrop();
 
     if (!state.user) await loadStoredUser();
 
