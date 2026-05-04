@@ -771,18 +771,32 @@ async function getMovieTrailer(req, res) {
     return res.json({ trailerUrl: movie.trailerUrl });
   }
 
-  const tmdbId = movie.externalId?.startsWith("tmdb:")
+  let tmdbId = movie.externalId?.startsWith("tmdb:")
     ? movie.externalId.split(":")[1]
     : "";
 
   if (!tmdbId) {
-    return res.json({ trailerUrl: "" });
+    const matches = await tmdbService.searchMovies(movie.title);
+    const normalizedTitle = normalizePrompt(movie.title);
+    const bestMatch = matches.find((match) => (
+      normalizePrompt(match.title) === normalizedTitle
+      && (!movie.releaseYear || match.releaseYear === movie.releaseYear)
+    )) || matches.find((match) => normalizePrompt(match.title) === normalizedTitle) || matches[0];
+
+    tmdbId = bestMatch?.tmdbId ? String(bestMatch.tmdbId) : "";
+
+    if (!tmdbId) {
+      return res.json({ trailerUrl: "" });
+    }
   }
 
   const trailerUrl = await tmdbService.getMovieTrailer(tmdbId);
 
   if (trailerUrl) {
     movie.trailerUrl = trailerUrl;
+    if (!movie.externalId) {
+      movie.externalId = `tmdb:${tmdbId}`;
+    }
     await movie.save();
   }
 
