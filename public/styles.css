@@ -3186,6 +3186,39 @@ textarea {
   padding: clamp(16px, 3vw, 26px);
 }
 
+.details-page-header {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.details-back-button {
+  min-height: 38px;
+}
+
+.details-close-button {
+  align-items: center;
+  background: rgb(255 255 255 / 0.08);
+  border-color: rgb(255 255 255 / 0.14);
+  border-radius: 50%;
+  color: #fff8ec;
+  display: inline-flex;
+  font-size: 22px;
+  height: 42px;
+  justify-content: center;
+  line-height: 1;
+  min-height: 42px;
+  padding: 0;
+  width: 42px;
+}
+
+.details-close-button:hover {
+  background: rgb(226 184 92 / 0.2);
+  border-color: rgb(226 184 92 / 0.38);
+}
+
 .details-layout {
   display: grid;
   gap: 24px;
@@ -3206,6 +3239,47 @@ textarea {
 .details-similar {
   border-top: 1px solid rgb(226 184 92 / 0.14);
   padding-top: 14px;
+}
+
+.trailer-panel {
+  background: rgb(0 0 0 / 0.38);
+  border: 1px solid rgb(226 184 92 / 0.16);
+  border-radius: 14px;
+  display: grid;
+  gap: 12px;
+  overflow: hidden;
+  padding: 12px;
+}
+
+.trailer-panel[hidden] {
+  display: none;
+}
+
+.trailer-heading {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.trailer-heading strong {
+  color: #fff8ec;
+  font-size: 15px;
+}
+
+.trailer-heading a {
+  color: #f8e3a9;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.trailer-frame {
+  aspect-ratio: 16 / 9;
+  background: #050507;
+  border: 0;
+  border-radius: 10px;
+  width: 100%;
 }
 
 .auth-dialog {
@@ -3866,6 +3940,15 @@ button,
   .details-page {
     border-radius: 12px;
     padding: 14px;
+  }
+
+  .details-page-header {
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .details-back-button {
+    flex: 1;
   }
 
   .hero-copy h2 {

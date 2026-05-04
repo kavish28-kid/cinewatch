@@ -1419,10 +1419,14 @@ function renderModalMovie(movie, similarMovies = []) {
   const trailerButton = document.createElement("button");
   trailerButton.type = "button";
   trailerButton.className = "secondary";
-  trailerButton.textContent = "Trailer";
-  trailerButton.addEventListener("click", () => openMovieTrailer(movieId, movie.trailerUrl));
+  trailerButton.textContent = "Watch Trailer";
 
   actions.append(watchlistButton, trailerButton, ratingSelect, rateButton);
+
+  const trailerPanel = document.createElement("section");
+  trailerPanel.className = "trailer-panel";
+  trailerPanel.hidden = true;
+  trailerButton.addEventListener("click", () => openMovieTrailer(movieId, movie.trailerUrl, trailerPanel, movie.title));
 
   const similarSection = document.createElement("section");
   similarSection.className = "modal-similar";
@@ -1450,9 +1454,15 @@ function renderModalMovie(movie, similarMovies = []) {
   }
 
   similarSection.append(similarTitle, similarList);
-  details.append(title, subtitle, overview, facts, reviewInput, actions, similarSection);
+  details.append(title, subtitle, overview, facts, reviewInput, actions, trailerPanel, similarSection);
   layout.append(createPoster(movie, "detail-poster"), details);
   modalContent.appendChild(layout);
+}
+
+function closeDetailsPage() {
+  state.activeDetailMovieId = null;
+  switchView("browse");
+  showMessage("Ready.");
 }
 
 function renderDetailsPage(movie, similarMovies = []) {
@@ -1460,6 +1470,24 @@ function renderDetailsPage(movie, similarMovies = []) {
   const watchlistItem = state.watchlistByMovieId.get(movieId);
   const rating = state.ratingsByMovieId.get(movieId);
   detailsPageContent.innerHTML = "";
+
+  const pageHeader = document.createElement("div");
+  pageHeader.className = "details-page-header";
+
+  const backButton = document.createElement("button");
+  backButton.type = "button";
+  backButton.className = "secondary details-back-button";
+  backButton.textContent = "Back to Browse";
+  backButton.addEventListener("click", closeDetailsPage);
+
+  const closeButton = document.createElement("button");
+  closeButton.type = "button";
+  closeButton.className = "details-close-button";
+  closeButton.textContent = "x";
+  closeButton.setAttribute("aria-label", "Close movie details");
+  closeButton.addEventListener("click", closeDetailsPage);
+
+  pageHeader.append(backButton, closeButton);
 
   const layout = document.createElement("div");
   layout.className = "details-layout";
@@ -1538,8 +1566,7 @@ function renderDetailsPage(movie, similarMovies = []) {
   const trailerButton = document.createElement("button");
   trailerButton.type = "button";
   trailerButton.className = "secondary";
-  trailerButton.textContent = "Trailer";
-  trailerButton.addEventListener("click", () => openMovieTrailer(movieId, movie.trailerUrl));
+  trailerButton.textContent = "Watch Trailer";
 
   const deleteButton = document.createElement("button");
   deleteButton.type = "button";
@@ -1548,6 +1575,11 @@ function renderDetailsPage(movie, similarMovies = []) {
   deleteButton.addEventListener("click", () => requestDeleteStoredMovie(movieId, movie.title));
 
   actions.append(watchlistButton, trailerButton, ratingSelect, saveReviewButton, deleteButton);
+
+  const trailerPanel = document.createElement("section");
+  trailerPanel.className = "trailer-panel";
+  trailerPanel.hidden = true;
+  trailerButton.addEventListener("click", () => openMovieTrailer(movieId, movie.trailerUrl, trailerPanel, movie.title));
 
   const similarSection = document.createElement("div");
   similarSection.className = "details-similar";
@@ -1574,9 +1606,9 @@ function renderDetailsPage(movie, similarMovies = []) {
   }
 
   similarSection.append(similarTitle, similarList);
-  content.append(kicker, title, subtitle, overview, facts, reviewInput, actions, similarSection);
+  content.append(kicker, title, subtitle, overview, facts, reviewInput, actions, trailerPanel, similarSection);
   layout.append(poster, content);
-  detailsPageContent.appendChild(layout);
+  detailsPageContent.append(pageHeader, layout);
 }
 
 function renderDashboard() {
@@ -2395,36 +2427,92 @@ async function showSimilarMovies(movieId, title) {
   }
 }
 
-async function openMovieTrailer(movieId, knownTrailerUrl = "") {
-  if (knownTrailerUrl) {
-    window.open(knownTrailerUrl, "_blank", "noopener,noreferrer");
-    showToast("Trailer opened", "YouTube trailer is opening.");
+function trailerEmbedUrl(trailerUrl) {
+  if (!trailerUrl) return "";
+
+  try {
+    const url = new URL(trailerUrl);
+    const host = url.hostname.replace(/^www\./, "");
+
+    if (host === "youtu.be") {
+      const key = url.pathname.split("/").filter(Boolean)[0];
+      return key ? `https://www.youtube.com/embed/${key}` : "";
+    }
+
+    if (host.endsWith("youtube.com")) {
+      if (url.pathname.startsWith("/embed/")) return trailerUrl;
+
+      const key = url.searchParams.get("v");
+      return key ? `https://www.youtube.com/embed/${key}` : "";
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
+}
+
+function renderTrailerFrame(targetElement, trailerUrl, movieTitle) {
+  const embedUrl = trailerEmbedUrl(trailerUrl);
+  targetElement.hidden = false;
+  targetElement.innerHTML = "";
+
+  const heading = document.createElement("div");
+  heading.className = "trailer-heading";
+
+  const title = document.createElement("strong");
+  title.textContent = "Trailer";
+
+  const externalLink = document.createElement("a");
+  externalLink.href = trailerUrl;
+  externalLink.target = "_blank";
+  externalLink.rel = "noopener noreferrer";
+  externalLink.textContent = "Open on YouTube";
+
+  heading.append(title, externalLink);
+
+  if (!embedUrl) {
+    const fallback = document.createElement("p");
+    fallback.className = "empty-state";
+    fallback.textContent = "Trailer found, but it cannot be embedded here. Open it on YouTube.";
+    targetElement.append(heading, fallback);
+    targetElement.scrollIntoView({ behavior: "smooth", block: "nearest" });
     return;
   }
 
-  const trailerWindow = window.open("", "_blank", "noopener,noreferrer");
+  const frame = document.createElement("iframe");
+  frame.className = "trailer-frame";
+  frame.src = embedUrl;
+  frame.title = `${movieTitle} trailer`;
+  frame.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+  frame.allowFullscreen = true;
 
+  targetElement.append(heading, frame);
+  targetElement.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+async function openMovieTrailer(movieId, knownTrailerUrl = "", targetElement = null, movieTitle = "Movie") {
   try {
     setLoading(`trailer-${movieId}`, true, "Finding trailer...");
-    const data = await window.cineWatchApi.getMovieTrailer(movieId);
+    const trailerUrl = knownTrailerUrl || (await window.cineWatchApi.getMovieTrailer(movieId)).trailerUrl;
 
-    if (!data.trailerUrl) {
-      if (trailerWindow) trailerWindow.close();
+    if (!trailerUrl) {
       showToast("Trailer unavailable", "TMDB did not return a trailer for this movie.");
       showMessage("Trailer unavailable for this movie.");
       return;
     }
 
-    if (trailerWindow) {
-      trailerWindow.location.href = data.trailerUrl;
-    } else {
-      window.open(data.trailerUrl, "_blank", "noopener,noreferrer");
+    if (targetElement) {
+      renderTrailerFrame(targetElement, trailerUrl, movieTitle);
+      showMessage("Trailer ready.");
+      showToast("Trailer ready", "Playing inside CineWatch.");
+      return;
     }
 
+    window.open(trailerUrl, "_blank", "noopener,noreferrer");
     showMessage("Trailer opened.");
     showToast("Trailer opened", "YouTube trailer is opening.");
   } catch (error) {
-    if (trailerWindow) trailerWindow.close();
     showApiError(error);
   } finally {
     setLoading(`trailer-${movieId}`, false);
@@ -2590,6 +2678,10 @@ menuBackdrop.addEventListener("click", () => setMenuOpen(false));
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     setMenuOpen(false);
+
+    if (document.querySelector("#details-view").classList.contains("active")) {
+      closeDetailsPage();
+    }
   }
 });
 document.addEventListener("pointermove", (event) => {
