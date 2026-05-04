@@ -3055,6 +3055,7 @@ textarea {
 }
 
 .taste-orbit-stage {
+  height: 380px;
   min-height: 360px;
   perspective: 1000px;
 }
@@ -3062,7 +3063,7 @@ textarea {
 #taste-orbit-canvas {
   display: block;
   height: 100%;
-  min-height: 320px;
+  min-height: 0;
   width: 100%;
 }
 
@@ -4003,6 +4004,7 @@ button,
   }
 
   .taste-orbit-stage {
+    height: 330px;
     min-height: 320px;
   }
 
@@ -4038,10 +4040,15 @@ button,
   }
 
   .taste-orbit-stage {
-    min-height: 300px;
+    display: grid;
+    grid-template-rows: 260px auto;
+    height: auto;
+    min-height: 0;
   }
 
   #taste-orbit-canvas {
+    height: 260px;
+    max-height: 260px;
     min-height: 260px;
   }
 
